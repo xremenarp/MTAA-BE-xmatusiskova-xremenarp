@@ -1,0 +1,8 @@
+.idea/
+venv/
+.github/
+.editorconfig
+.flake8
+.gitignore
+DBS_2.pdf
+README.md

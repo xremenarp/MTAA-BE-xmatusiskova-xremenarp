@@ -1,0 +1,8 @@
+uvicorn
+fastapi~=0.109.2
+psycopg2-binary
+tzdata
+pydantic-settings
+python-dotenv~=1.0.1
+hypercorn
+pyyaml
