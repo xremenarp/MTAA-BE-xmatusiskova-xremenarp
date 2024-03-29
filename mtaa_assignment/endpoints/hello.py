@@ -2,7 +2,7 @@ import psycopg2
 import psycopg2.pool
 from fastapi import APIRouter, Query
 
-from dbs_assignment.config import settings
+from mtaa_assignment.config import settings
 
 router = APIRouter()
 
@@ -118,4 +118,4 @@ async def activities():
 
 
 
-##########################hypercorn dbs_assignment.__main__:app --reload##################
+##########################hypercorn mtaa_assignment.__main__:app --reload##################
