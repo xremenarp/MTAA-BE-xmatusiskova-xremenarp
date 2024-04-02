@@ -118,9 +118,108 @@ async def activities() -> dict:
                 FROM activities""")
     cursor.execute(query)
 
-    data = cursor.fetchone()
+    data = cursor.fetchall()
     records = zip_objects_from_db(data, cursor)
 
     cursor.close()
     pool.putconn(conn)
     return {"items": records}
+
+@router.get("/api/favourites")
+async def favourites() -> dict:
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""SELECT *
+                FROM favourites""")
+    cursor.execute(query)
+
+    data = cursor.fetchall()
+    records = zip_objects_from_db(data, cursor)
+
+    cursor.close()
+    pool.putconn(conn)
+    return {"items": records}
+
+@router.get("/api/location-activities/{gps}")
+async def favourites(gps: str) -> dict:
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""SELECT *
+                FROM activities""")
+    cursor.execute(query)
+
+    data = cursor.fetchll()
+    #vypocet radiusu podla gps
+
+    records = zip_objects_from_db(data, cursor)
+
+    cursor.close()
+    pool.putconn(conn)
+    return {"items": records}
+
+@router.get("/api/{username}")
+async def favourites(username: str) -> dict:
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""SELECT *
+                FROM users
+                WHERE username= %s""")
+    cursor.execute(query, username)
+
+    data = cursor.fetchall()
+    #vypocet radiusu podla gps
+
+    records = zip_objects_from_db(data, cursor)
+
+    cursor.close()
+    pool.putconn(conn)
+    return {"items": records}
+
+@router.post("/api/edit_profile/{username}/{password}")
+async def edit_profile(username: str, password: str) -> dict:
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""UPDATE users
+                SET password = %s
+                WHERE username = %s """)
+    cursor.execute(query, (password, username))
+    cursor.close()
+    pool.putconn(conn)
+    return {"status": "Done"}
+
+@router.get("/api/activity/{category}")
+async def category(category: str) -> dict:
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""SELECT *
+                FROM activities
+                WHERE category LIKE(%%s%) """)
+    cursor.execute(query, category)
+
+    data = cursor.fetchall()
+    records = zip_objects_from_db(data, cursor)
+
+    cursor.close()
+    pool.putconn(conn)
+    return {"items": records}
+
+@router.post("/api/add_favorit/{activity_id}")
+async def edit_profile(actiactivity_id: int) -> dict:
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""SELECT *
+                FROM favourites
+                WHERE id = %s""")
+    cursor.execute(query, actiactivity_id)
+    data = cursor.fetchone()
+    cursor.close()
+    pool.putconn(conn)
+
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""INSERT INTO favourites
+                VALUES (%s,%s,%s)""")
+    cursor.execute(query, (data[0], data[1], data[2]))
+    cursor.close()
+    pool.putconn(conn)
+    return {"status": "Done"}
