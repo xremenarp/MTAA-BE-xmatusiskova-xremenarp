@@ -315,8 +315,6 @@ async def delete_account(request: Request):
         conn.commit()
         cursor.close()
         pool.putconn(conn)
-        print("lala")
-        print(cursor.rowcount)
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Not Found: User not found.")
 

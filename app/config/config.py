@@ -22,6 +22,6 @@ settings = Settings()
 from hypercorn.config import Config
 
 config = Config()
-config.bind = ["127.0.0.2:443"]
+config.bind = ["0.0.0.0:443"]
 config.certfile = "cert.pem"
 config.keyfile = "key.pem"
