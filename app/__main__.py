@@ -10,7 +10,7 @@ app = FastAPI(title="MTAA")
 app.include_router(router)
 
 
-import asyncio
-from hypercorn.asyncio import serve
+##import asyncio
+##from hypercorn.asyncio import serve
 
-asyncio.run(serve(app, config))
+##asyncio.run(serve(app, config))
