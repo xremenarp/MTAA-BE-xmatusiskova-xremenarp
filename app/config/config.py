@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     DATABASE_NAME: str
     DATABASE_USER: str
     DATABASE_PASSWORD: str
+    JWT_SECRET_KEY: str
+
 
 settings = Settings()
-
