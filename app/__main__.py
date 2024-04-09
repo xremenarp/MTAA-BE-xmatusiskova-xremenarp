@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.config.config import config
 from app.router import router
 
 
@@ -11,6 +12,5 @@ app.include_router(router)
 
 import asyncio
 from hypercorn.asyncio import serve
-from app.config import config
 
 asyncio.run(serve(app, config))

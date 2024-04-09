@@ -51,6 +51,9 @@ def generate_ssl_cert_and_key(key_length=2048, days_valid=365):
         keyfile.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
     print("SSL certificate and key generated successfully.")
 
+generate_ssl_cert_and_key()
+
+
 def serialize_datetime_and_decimal(obj):
     if isinstance(obj, datetime):
         return obj.astimezone(timezone.utc).isoformat(timespec='milliseconds')[:-3]
@@ -68,10 +71,6 @@ async def hello() -> dict:
     return {
         'hello': settings.DATABASE_NAME
     }
-
-
-generate_ssl_cert_and_key()
-
 
 @router.get("/status")
 async def status() -> dict:
@@ -154,26 +153,6 @@ async def location_activities(gps: str) -> dict:
     cursor.close()
     pool.putconn(conn)
     return {"items": records}
-
-# @router.get("/api/{username}")
-# async def favourites(username: str) -> dict:
-#     conn = pool.getconn()
-#     cursor = conn.cursor()
-#     query = ("""SELECT *
-#                 FROM users_auth
-#                 WHERE username= %s""")
-#     cursor.execute(query, (username,))
-#
-#     data = cursor.fetchall()
-#     #vypocet radiusu podla gps
-#
-#     records = zip_objects_from_db(data, cursor)
-#
-#     cursor.close()
-#     pool.putconn(conn)
-#     return {"items": records}
-
-
 
 @router.get("/api/activity/{category}")
 async def category(category: str) -> dict:
