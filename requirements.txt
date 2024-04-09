@@ -1,11 +1,10 @@
-uvicorn~=0.29.0
+uvicorn
 fastapi~=0.109.2
 psycopg2-binary
 tzdata
 pydantic-settings
 python-dotenv~=1.0.1
 hypercorn
-pyyaml~=6.0.1
 PyJWT~=2.8.0
 flask~=3.0.2
 hpack~=4.0.0
@@ -25,3 +24,5 @@ wsproto~=1.2.0
 priority~=2.0.0
 itsdangerous~=2.1.2
 setuptools~=68.2.0
+pyyaml
+pyOpenSSL
