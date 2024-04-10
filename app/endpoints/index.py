@@ -1,9 +1,13 @@
 import decimal
 from math import radians, sin, cos, sqrt, atan2
+from typing import Dict
+
 from OpenSSL import crypto
 from datetime import datetime, timezone
 import psycopg2.pool
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from starlette.responses import JSONResponse
+
 from app.config.config import settings
 
 router = APIRouter()
@@ -86,144 +90,178 @@ async def status() -> dict:
 
 
 @router.get("/api/activities")
-async def activities() -> dict:
-    conn = pool.getconn()
-    cursor = conn.cursor()
-    query = ("""SELECT *
-                FROM activities""")
-    cursor.execute(query)
+async def activities() -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM places""")
+        cursor.execute(query)
 
-    data = cursor.fetchall()
-    records = zip_objects_from_db(data, cursor)
+        data = cursor.fetchall()
+        records = zip_objects_from_db(data, cursor)
 
-    cursor.close()
-    pool.putconn(conn)
-    return {"items": records}
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=200, content={"items": records})
+        else:
+            return JSONResponse(status_code=204, content={"detail": "No records found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
 @router.get("/api/activita/{id}")
-async def activities(id : int) -> dict:
-    conn = pool.getconn()
-    cursor = conn.cursor()
-    query = ("""SELECT *
-                FROM places
-                where id=%s""")
-    cursor.execute(query, [id])
+async def activities(id : str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM places
+                    where id=%s""")
+        cursor.execute(query, [id])
 
-    data = cursor.fetchall()
-    records = zip_objects_from_db(data, cursor)
+        data = cursor.fetchall()
+        records = zip_objects_from_db(data, cursor)
 
-    cursor.close()
-    pool.putconn(conn)
-    return {"items": records}
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=200, content={"items": records})
+        else:
+            return JSONResponse(status_code=204, content={"detail": "No records found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
 @router.get("/api/favourites")
-async def favourites() -> dict:
-    conn = pool.getconn()
-    cursor = conn.cursor()
-    query = ("""SELECT *
-                FROM favourites""")
-    cursor.execute(query)
+async def favourites() -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM favourites""")
+        cursor.execute(query)
 
-    data = cursor.fetchall()
-    records = zip_objects_from_db(data, cursor)
+        data = cursor.fetchall()
+        records = zip_objects_from_db(data, cursor)
 
-    cursor.close()
-    pool.putconn(conn)
-    return {"items": records}
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=200, content={"items": records})
+        else:
+            return JSONResponse(status_code=204, content={"detail": "No records found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
 @router.get("/api/location-activities/{gps}")
-async def location_activities(gps: str) -> dict:
-    conn = pool.getconn()
-    cursor = conn.cursor()
-    query = ("""SELECT *
-                FROM places""")
-    cursor.execute(query)
-    data = cursor.fetchall()
-    new_data = []
-    for i in data:
-        coord = i[6].split(", ")
-        coord_user = gps.split(", ")
-        if haversine((float(coord_user[0]), float(coord_user[1])), (float(coord[0]), float(coord[1]))) <= 2:#############radius in km
-            new_data.append(i)
-
-    records = zip_objects_from_db(new_data, cursor)
-    cursor.close()
-    pool.putconn(conn)
-    return {"items": records}
-
-@router.get("/api/activity/{category}")
-async def category(category: str) -> dict:
-    conn = pool.getconn()
-    cursor = conn.cursor()
-    if category == "meals":
-        query = ("""SELECT *
-                    FROM places
-                    WHERE meals='TRUE' """)
-    elif category == "accomodation":
-        query = ("""SELECT *
-                    FROM places
-                    WHERE accomodation='TRUE' """)
-    elif category == "sport":
-        query = ("""SELECT *
-                    FROM places
-                    WHERE sport='TRUE' """)
-    elif category == "hiking":
-        query = ("""SELECT *
-                    FROM places
-                    WHERE hiking='TRUE' """)
-    elif category == "fun":
-        query = ("""SELECT *
-                    FROM places
-                    WHERE fun='TRUE' """)
-    elif category == "events":
-        query = ("""SELECT *
-                    FROM places
-                    WHERE events='TRUE' """)
-    else:
-        cursor.close()
-        pool.putconn(conn)
-        return {"items": "Nothing was found"}
-
-    cursor.execute(query, category)
-
-    data = cursor.fetchall()
-    records = zip_objects_from_db(data, cursor)
-
-    cursor.close()
-    pool.putconn(conn)
-    return {"items": records}
-
-@router.post("/api/add_favourit/{activity_id}")
-async def edit_profile(actiactivity_id: int) -> dict:
-    conn = pool.getconn()
-    cursor = conn.cursor()
-    query = ("""SELECT *
-                FROM favourites
-                WHERE id = %s""")
-    cursor.execute(query, [actiactivity_id])
-    data = cursor.fetchone()
-    cursor.close()
-    pool.putconn(conn)
-    if not data:
+async def location_activities(gps: str) -> JSONResponse:
+    try:
         conn = pool.getconn()
         cursor = conn.cursor()
-
         query = ("""SELECT *
-                    FROM places
+                    FROM places""")
+        cursor.execute(query)
+        data = cursor.fetchall()
+        new_data = []
+        for i in data:
+            coord = i[6].split(", ")
+            coord_user = gps.split(", ")
+            if haversine((float(coord_user[0]), float(coord_user[1])), (float(coord[0]), float(coord[1]))) <= 2:#############radius in km
+                new_data.append(i)
+
+        records = zip_objects_from_db(new_data, cursor)
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=200, content={"items": records})
+        else:
+            return JSONResponse(status_code=204, content={"detail": "No records found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+@router.get("/api/activity/{category}")
+async def category(category: str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        if category == "meals":
+            query = ("""SELECT *
+                        FROM places
+                        WHERE meals='TRUE' """)
+        elif category == "accomodation":
+            query = ("""SELECT *
+                        FROM places
+                        WHERE accomodation='TRUE' """)
+        elif category == "sport":
+            query = ("""SELECT *
+                        FROM places
+                        WHERE sport='TRUE' """)
+        elif category == "hiking":
+            query = ("""SELECT *
+                        FROM places
+                        WHERE hiking='TRUE' """)
+        elif category == "fun":
+            query = ("""SELECT *
+                        FROM places
+                        WHERE fun='TRUE' """)
+        elif category == "events":
+            query = ("""SELECT *
+                        FROM places
+                        WHERE events='TRUE' """)
+        else:
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=204, content={"detail": "Category does not exist"})
+
+        cursor.execute(query, category)
+
+        data = cursor.fetchall()
+        records = zip_objects_from_db(data, cursor)
+
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=200, content={"items": records})
+        else:
+            return JSONResponse(status_code=204, content={"detail": "No records found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.post("/api/add_favourit/{activity_id}")
+async def edit_profile(actiactivity_id: str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM favourites
                     WHERE id = %s""")
         cursor.execute(query, [actiactivity_id])
         data = cursor.fetchone()
-        query = ("""INSERT INTO favourites
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
-        cursor.execute(query, (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12]))
-        conn.commit()
         cursor.close()
         pool.putconn(conn)
-        return {"status": "Done"}
-    else:
-        return {"status": "Already in favourites"}
+        if not data:
+            conn = pool.getconn()
+            cursor = conn.cursor()
+
+            query = ("""SELECT *
+                        FROM places
+                        WHERE id = %s""")
+            cursor.execute(query, [actiactivity_id])
+            data = cursor.fetchone()
+            query = ("""INSERT INTO favourites
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+            cursor.execute(query, (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], ""))
+            conn.commit()
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=201, content={"detail": "OK: Place added to favourites."})
+        else:
+            return JSONResponse(status_code=205, content={"detail": "Place already in favourites"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
