@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-from hypercorn.config import Config
+##from hypercorn.config import Config
 
 ##config = Config()
 ##config.bind = ["0.0.0.0:443"]

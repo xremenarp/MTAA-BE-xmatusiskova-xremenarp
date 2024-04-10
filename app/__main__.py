@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.config.config import config
+##from app.config.config import config
 from app.router import router
 
 
