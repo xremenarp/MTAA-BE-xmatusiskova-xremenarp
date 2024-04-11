@@ -23,6 +23,7 @@ settings = Settings()
 
 ##config = Config()
 ##config.bind = ["0.0.0.0:443"]
-##config.bind = ["127.0.0.2:443"]
+##config.bind = ["127.0.0.2:8000"] ##bez https
+##config.bind = ["127.0.0.2:443"] ##zo https
 ##config.certfile = "cert.pem"
 ##config.keyfile = "key.pem"
