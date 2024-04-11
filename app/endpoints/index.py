@@ -1,11 +1,11 @@
 import decimal
 from math import radians, sin, cos, sqrt, atan2
 from typing import Dict
-
+import uuid
 from OpenSSL import crypto
 from datetime import datetime, timezone
 import psycopg2.pool
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 from starlette.responses import JSONResponse
 
 from app.config.config import settings
@@ -218,7 +218,6 @@ async def category(category: str) -> JSONResponse:
             return JSONResponse(status_code=204, content={"detail": "Category does not exist"})
 
         cursor.execute(query, category)
-
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
 
@@ -231,8 +230,9 @@ async def category(category: str) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
+
 @router.post("/api/add_favourit/{activity_id}")
-async def edit_profile(actiactivity_id: str) -> JSONResponse:
+async def add_favourit(actiactivity_id: str) -> JSONResponse:
     try:
         conn = pool.getconn()
         cursor = conn.cursor()
@@ -254,7 +254,8 @@ async def edit_profile(actiactivity_id: str) -> JSONResponse:
             data = cursor.fetchone()
             query = ("""INSERT INTO favourites
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
-            cursor.execute(query, (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], ""))
+            cursor.execute(query, (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
+                                   data[9], data[10], data[11], data[12], data[13]))
             conn.commit()
             cursor.close()
             pool.putconn(conn)
@@ -265,3 +266,202 @@ async def edit_profile(actiactivity_id: str) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
+@router.put("/api/add_edit_note/{activity_id}/{note}")
+async def add_note(actiactivity_id: str, note: str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""INSERT INTO notes
+                    VALUES (%s,%s)
+                    ON CONFLICT(id)
+                    DO UPDATE
+                    SET note = %s
+                    WHERE id = %s""")
+        cursor.execute(query, ([actiactivity_id], [note], [note], [actiactivity_id],))
+        conn.commit()
+        cursor.close()
+        pool.putconn(conn)
+        return JSONResponse(status_code=201, content={"detail": "OK: Note added to place."})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.delete("/api/delete_note/{activity_id}")
+async def add_note(actiactivity_id: str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM notes
+                    WHERE id=%s""")
+        cursor.execute(query, [actiactivity_id])
+        data = cursor.fetchone()
+        if data:
+            query = ("""DELETE FROM notes
+                        WHERE id=%s""")
+            cursor.execute(query, [actiactivity_id])
+            conn.commit()
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=201, content={"detail": "OK: Note deleted."})
+        else:
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=205, content={"detail": "OK: Note does not exist."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.get("/api/get_note/{activity_id}")
+async def get_note(actiactivity_id: str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM notes
+                    WHERE id = %s""")
+        cursor.execute(query, [actiactivity_id])
+        data = cursor.fetchone()
+        records = zip_objects_from_db(data, cursor)
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=201, content={"note": records})
+        else:
+            return JSONResponse(status_code=205, content={"detail": "Place does not have notes"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.post("/api/add_place/")
+async def add_place(request: Request) -> JSONResponse:
+    try:
+        input = await request.json()
+        name = input.get("name")
+        image = input.get("image")
+        description = input.get("description")
+        contact = input.get("contact")
+        address = input.get("address")
+        gps = input.get("gps")
+        meals = input.get("meals")
+        accomodation = input.get("accomodation")
+        sport = input.get("sport")
+        hiking = input.get("hiking")
+        fun = input.get("fun")
+        events = input.get("events")
+        gen_uuid = uuid.uuid4()
+
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""INSERT INTO my_places
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+        cursor.execute(query,(str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
+        conn.commit()
+        query = ("""INSERT INTO places
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+        cursor.execute(query, (str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun,events))
+        conn.commit()
+        cursor.close()
+        pool.putconn(conn)
+        return JSONResponse(status_code=201, content={"detail": "OK: Place created."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.put("/api/edit_place/")
+async def edit_place(request: Request) -> JSONResponse:
+    try:
+        input = await request.json()
+        id = input.get("id")
+        name = input.get("name")
+        image = input.get("image")
+        description = input.get("description")
+        contact = input.get("contact")
+        address = input.get("address")
+        gps = input.get("gps")
+        meals = input.get("meals")
+        accomodation = input.get("accomodation")
+        sport = input.get("sport")
+        hiking = input.get("hiking")
+        fun = input.get("fun")
+        events = input.get("events")
+        gen_uuid = uuid.uuid4()
+
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM my_places
+                    WHERE id = %s""")
+        cursor.execute(query, [id])
+        data = cursor.fetchone()
+        if data:
+            query = ("""DELETE FROM my_places
+                        WHERE id=%s""")
+            cursor.execute(query, [id])
+            conn.commit()
+            query = ("""DELETE FROM places
+                        WHERE id=%s""")
+            cursor.execute(query, [id])
+            conn.commit()
+            query = ("""INSERT INTO my_places
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+            cursor.execute(query,(str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
+            conn.commit()
+            query = ("""INSERT INTO places
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+            cursor.execute(query, (str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun,events))
+            conn.commit()
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=201, content={"detail": "OK: Place edited."})
+        else:
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=205, content={"detail": "OK: Place not found."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.delete("/api/delete_place/{id}")
+async def edit_place(id: str) -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM my_places
+                    WHERE id = %s""")
+        cursor.execute(query, [id])
+        data = cursor.fetchone()
+        if data:
+            query = ("""DELETE FROM my_places
+                        WHERE id=%s""")
+            cursor.execute(query, [id])
+            conn.commit()
+            query = ("""DELETE FROM places
+                        WHERE id=%s""")
+            cursor.execute(query, [id])
+            conn.commit()
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=201, content={"detail": "OK: Place deleted."})
+        else:
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=205, content={"detail": "OK: Place not found."})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.get("/api/get_created_places")
+async def get_created_places() -> JSONResponse:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM my_places""")
+        cursor.execute(query)
+        data = cursor.fetchall()
+        records = zip_objects_from_db(data, cursor)
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=201, content={"note": records})
+        else:
+            return JSONResponse(status_code=205, content={"detail": "Place does not have notes"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
