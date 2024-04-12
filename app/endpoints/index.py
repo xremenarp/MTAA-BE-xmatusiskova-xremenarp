@@ -27,36 +27,6 @@ def haversine(coord1, coord2):
     lat2, lon2 = radians(coord2[0]), radians(coord2[1])
     return 6371.0 * (2 * atan2(sqrt((sin((lat2 - lat1) / 2)**2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2)**2)), sqrt(1 - (sin((lat2 - lat1) / 2)**2 + cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2)**2))))
 
-##chatgpt
-def generate_ssl_cert_and_key(key_length=2048, days_valid=365):
-    # Generate a key pair
-    key = crypto.PKey()
-    key.generate_key(crypto.TYPE_RSA, key_length)
-
-    # Create a self-signed certificate
-    cert = crypto.X509()
-    cert.get_subject().C = "SK"  # Country Name
-    cert.get_subject().ST = "BA"  # State or Province Name
-    cert.get_subject().L = "BA"  # Locality Name
-    cert.get_subject().O = "MTAA"  # Organization Name
-    cert.get_subject().CN = "localhost"  # Common Name
-    cert.set_serial_number(1000)
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(days_valid * 24 * 60 * 60)
-    cert.set_issuer(cert.get_subject())
-    cert.set_pubkey(key)
-    cert.sign(key, 'sha256')
-
-    # Write certificate and private key to files
-    with open('cert.pem', "wb") as certfile:
-        certfile.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
-
-    with open('key.pem', "wb") as keyfile:
-        keyfile.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
-    print("SSL certificate and key generated successfully.")
-
-generate_ssl_cert_and_key()
-
 
 def serialize_datetime_and_decimal(obj):
     if isinstance(obj, datetime):
@@ -89,7 +59,7 @@ async def status() -> dict:
     }
 
 
-@router.get("/api/activities")
+@router.get("/api/get_all_places")
 async def activities() -> JSONResponse:
     try:
         conn = pool.getconn()
@@ -111,19 +81,19 @@ async def activities() -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/activita/{id}")
-async def activities(id : str) -> JSONResponse:
+@router.get("/api/place")
+async def activities(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        id = input.get("id")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM places
                     where id=%s""")
-        cursor.execute(query, [id])
-
-        data = cursor.fetchall()
+        cursor.execute(query, [str(id)])
+        data = cursor.fetchone()
         records = zip_objects_from_db(data, cursor)
-
         cursor.close()
         pool.putconn(conn)
         if data:
@@ -134,7 +104,7 @@ async def activities(id : str) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/favourites")
+@router.get("/api/get_all_favourites")
 async def favourites() -> JSONResponse:
     try:
         conn = pool.getconn()
@@ -142,10 +112,8 @@ async def favourites() -> JSONResponse:
         query = ("""SELECT *
                     FROM favourites""")
         cursor.execute(query)
-
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
-
         cursor.close()
         pool.putconn(conn)
         if data:
@@ -156,9 +124,12 @@ async def favourites() -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/location-activities/{gps}")
-async def location_activities(gps: str) -> JSONResponse:
+@router.get("/api/location_places")
+async def location_activities(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        gps = input.get("gps")
+        gps = str(gps)
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
@@ -183,9 +154,11 @@ async def location_activities(gps: str) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/activity/{category}")
-async def category(category: str) -> JSONResponse:
+@router.get("/api/place_category")
+async def category(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        category = input.get("category")
         conn = pool.getconn()
         cursor = conn.cursor()
         if category == "meals":
@@ -220,7 +193,6 @@ async def category(category: str) -> JSONResponse:
         cursor.execute(query, category)
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
-
         cursor.close()
         pool.putconn(conn)
         if data:
@@ -231,15 +203,17 @@ async def category(category: str) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/api/add_favourit/{activity_id}")
-async def add_favourit(actiactivity_id: str) -> JSONResponse:
+@router.post("/api/add_favourit")
+async def add_favourit(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        activity_id = input.get("activity_id")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM favourites
                     WHERE id = %s""")
-        cursor.execute(query, [actiactivity_id])
+        cursor.execute(query, [activity_id])
         data = cursor.fetchone()
         cursor.close()
         pool.putconn(conn)
@@ -250,7 +224,7 @@ async def add_favourit(actiactivity_id: str) -> JSONResponse:
             query = ("""SELECT *
                         FROM places
                         WHERE id = %s""")
-            cursor.execute(query, [actiactivity_id])
+            cursor.execute(query, [activity_id])
             data = cursor.fetchone()
             query = ("""INSERT INTO favourites
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
@@ -266,9 +240,12 @@ async def add_favourit(actiactivity_id: str) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.put("/api/add_edit_note/{activity_id}/{note}")
-async def add_note(actiactivity_id: str, note: str) -> JSONResponse:
+@router.put("/api/add_edit_note")
+async def add_note(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        activity_id = input.get("activity_id")
+        note = input.get("note")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""INSERT INTO notes
@@ -277,7 +254,7 @@ async def add_note(actiactivity_id: str, note: str) -> JSONResponse:
                     DO UPDATE
                     SET note = %s
                     WHERE id = %s""")
-        cursor.execute(query, ([actiactivity_id], [note], [note], [actiactivity_id],))
+        cursor.execute(query, ([activity_id], [note], [note], [activity_id],))
         conn.commit()
         cursor.close()
         pool.putconn(conn)
@@ -286,20 +263,22 @@ async def add_note(actiactivity_id: str, note: str) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.delete("/api/delete_note/{activity_id}")
-async def add_note(actiactivity_id: str) -> JSONResponse:
+@router.delete("/api/delete_note")
+async def add_note(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        activity_id = input.get("activity_id")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM notes
                     WHERE id=%s""")
-        cursor.execute(query, [actiactivity_id])
+        cursor.execute(query, [activity_id])
         data = cursor.fetchone()
         if data:
             query = ("""DELETE FROM notes
                         WHERE id=%s""")
-            cursor.execute(query, [actiactivity_id])
+            cursor.execute(query, [activity_id])
             conn.commit()
             cursor.close()
             pool.putconn(conn)
@@ -311,15 +290,17 @@ async def add_note(actiactivity_id: str) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.get("/api/get_note/{activity_id}")
-async def get_note(actiactivity_id: str) -> JSONResponse:
+@router.get("/api/get_note")
+async def get_note(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        activity_id = input.get("activity_id")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM notes
                     WHERE id = %s""")
-        cursor.execute(query, [actiactivity_id])
+        cursor.execute(query, [activity_id])
         data = cursor.fetchone()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
@@ -331,7 +312,7 @@ async def get_note(actiactivity_id: str) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.post("/api/add_place/")
+@router.post("/api/add_place")
 async def add_place(request: Request) -> JSONResponse:
     try:
         input = await request.json()
@@ -365,7 +346,7 @@ async def add_place(request: Request) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.put("/api/edit_place/")
+@router.put("/api/edit_place")
 async def edit_place(request: Request) -> JSONResponse:
     try:
         input = await request.json()
@@ -418,9 +399,11 @@ async def edit_place(request: Request) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.delete("/api/delete_place/{id}")
-async def edit_place(id: str) -> JSONResponse:
+@router.delete("/api/delete_place")
+async def edit_place(request: Request) -> JSONResponse:
     try:
+        input = await request.json()
+        id = input.get("id")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
