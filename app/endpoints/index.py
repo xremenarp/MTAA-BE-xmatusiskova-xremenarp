@@ -2,15 +2,21 @@ import decimal
 from math import radians, sin, cos, sqrt, atan2
 from typing import Dict
 import uuid
+
+import jwt
 from OpenSSL import crypto
 from datetime import datetime, timezone
 import psycopg2.pool
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer, HTTPAuthorizationCredentials, HTTPBearer
 from starlette.responses import JSONResponse
-
+from app.auth.Tokenization import Tokenization
+from app.auth.authentification import token_acces
 from app.config.config import settings
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth")
+security = HTTPBearer()
 
 pool = psycopg2.pool.SimpleConnectionPool(
     minconn=1,
@@ -36,15 +42,11 @@ def serialize_datetime_and_decimal(obj):
     else:
         return obj
 
+
 def zip_objects_from_db(data, cursor):
     return [dict(zip((key[0] for key in cursor.description),
                      [serialize_datetime_and_decimal(value) for value in row])) for row in data]
 
-@router.get("/hello")
-async def hello() -> dict:
-    return {
-        'hello': settings.DATABASE_NAME
-    }
 
 @router.get("/status")
 async def status() -> dict:
@@ -60,8 +62,10 @@ async def status() -> dict:
 
 
 @router.get("/api/get_all_places")
-async def activities() -> JSONResponse:
+async def activities(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
@@ -82,8 +86,10 @@ async def activities() -> JSONResponse:
 
 
 @router.get("/api/place")
-async def activities(request: Request) -> JSONResponse:
+async def activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         id = input.get("id")
         conn = pool.getconn()
@@ -105,8 +111,10 @@ async def activities(request: Request) -> JSONResponse:
 
 
 @router.get("/api/get_all_favourites")
-async def favourites() -> JSONResponse:
+async def favourites(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
@@ -125,8 +133,10 @@ async def favourites() -> JSONResponse:
 
 
 @router.get("/api/location_places")
-async def location_activities(request: Request) -> JSONResponse:
+async def location_activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         gps = input.get("gps")
         gps = str(gps)
@@ -155,8 +165,10 @@ async def location_activities(request: Request) -> JSONResponse:
 
 
 @router.get("/api/place_category")
-async def category(request: Request) -> JSONResponse:
+async def category(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         category = input.get("category")
         conn = pool.getconn()
@@ -204,8 +216,10 @@ async def category(request: Request) -> JSONResponse:
 
 
 @router.post("/api/add_favourite")
-async def add_favourit(request: Request) -> JSONResponse:
+async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool.getconn()
@@ -241,8 +255,10 @@ async def add_favourit(request: Request) -> JSONResponse:
 
 
 @router.post("/api/delete_favourite")
-async def delete_favourit(request: Request) -> JSONResponse:
+async def delete_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool.getconn()
@@ -267,8 +283,10 @@ async def delete_favourit(request: Request) -> JSONResponse:
 
 
 @router.put("/api/add_edit_note")
-async def add_note(request: Request) -> JSONResponse:
+async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         activity_id = input.get("activity_id")
         note = input.get("note")
@@ -290,8 +308,10 @@ async def add_note(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 @router.delete("/api/delete_note")
-async def add_note(request: Request) -> JSONResponse:
+async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool.getconn()
@@ -317,8 +337,10 @@ async def add_note(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 @router.get("/api/get_note")
-async def get_note(request: Request) -> JSONResponse:
+async def get_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool.getconn()
@@ -339,8 +361,10 @@ async def get_note(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 @router.post("/api/add_my_place")
-async def add_place(request: Request) -> JSONResponse:
+async def add_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         name = input.get("name")
         image = input.get("image")
@@ -375,8 +399,10 @@ async def add_place(request: Request) -> JSONResponse:
 
 
 @router.put("/api/edit_my_place")
-async def edit_place(request: Request) -> JSONResponse:
+async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         place_id = input.get("id")
         name = input.get("name")
@@ -428,8 +454,10 @@ async def edit_place(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 @router.delete("/api/delete_my_place")
-async def edit_place(request: Request) -> JSONResponse:
+async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         place_id = input.get("id")
         conn = pool.getconn()
@@ -459,8 +487,10 @@ async def edit_place(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 @router.get("/api/get_my_places")
-async def get_created_places() -> JSONResponse:
+async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
@@ -478,8 +508,10 @@ async def get_created_places() -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 @router.get("/api/get_my_place")
-async def get_created_places(request: Request) -> JSONResponse:
+async def get_created_places(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         place_id = input.get("id")
         conn = pool.getconn()

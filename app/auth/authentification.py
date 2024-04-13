@@ -1,16 +1,18 @@
+import re
 import uuid
 
-from fastapi import APIRouter, Request, HTTPException
+import jwt
+from fastapi import APIRouter, Request, HTTPException, Depends
 import psycopg2.pool
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from app.auth.CreateUser import CreateUser
 from app.auth.Tokenization import Tokenization
 from app.config.config import settings
 
 router = APIRouter()
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
+security = HTTPBearer()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth")
 
 pool = psycopg2.pool.SimpleConnectionPool(
     minconn=1,
@@ -35,18 +37,20 @@ async def signup(request: Request) -> JSONResponse:
         if not (username and email and password and confirm_password):
             return JSONResponse(status_code=400, content={"detail": "Bad request: All fields are required."})
 
-        salty_password, hashed_password = await generate_hashed_password(username, email, password, confirm_password)
-        generated_uuid = uuid.uuid4()
-
-        conn = pool.getconn()
-        cursor = conn.cursor()
-        query = ("""INSERT INTO users_auth
-                    VALUES (%s, %s, %s, %s, %s)""")
-        cursor.execute(query, (str(generated_uuid), username, email, salty_password, hashed_password))
-        conn.commit()
-        cursor.close()
-        pool.putconn(conn)
-        return JSONResponse(status_code=201, content={"detail": "Created: User created successfully"})
+        is_email = await email_exists(email)
+        if not is_email:
+            salty_password, hashed_password = await generate_hashed_password(username, email, password, confirm_password)
+            generated_uuid = uuid.uuid4()
+            conn = pool.getconn()
+            cursor = conn.cursor()
+            query = ("""INSERT INTO users_auth
+                        VALUES (%s, %s, %s, %s, %s)""")
+            cursor.execute(query, (str(generated_uuid), username, email, salty_password, hashed_password))
+            conn.commit()
+            cursor.close()
+            pool.putconn(conn)
+            return JSONResponse(status_code=201, content={"detail": "Created: User created successfully"})
+        return JSONResponse(status_code=400, content={"detail": "Bad request: Email already exists."})
     except psycopg2.Error as e:
         print(f"Error executing SQL query: {e}")
         raise HTTPException(status_code=500, detail="Database error")
@@ -68,12 +72,28 @@ async def generate_hashed_password(username: str, email: str, password: str, con
 def check_signup_input(username:str, email:str, password: str, confirm_password: str) -> bool:
     new_user = CreateUser()
     return check_passwords_equality(password, confirm_password) and new_user.validate_input(username=username, email=email, password=password,
-                                                                confirm_password=confirm_password)
+                                                                confirm_password=confirm_password) and new_user.validate_email(email=email)
 
 
 def check_passwords_equality(password: str, confirm_password: str) -> bool:
     return password == confirm_password
 
+
+async def email_exists(email: str) -> bool:
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT EXISTS(SELECT 1 FROM users_auth WHERE email=%s)""")
+        cursor.execute(query, (email, ))
+        result = cursor.fetchone()[0]
+        cursor.close()
+        pool.putconn(conn)
+
+        if result == 0:
+            return False
+        return True
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={f"Internal server error: {e}"})
 
 @router.post("/api/login/")
 async def login(request: Request):
@@ -201,17 +221,17 @@ async def edit_profile(request: Request):
             is_changed = await edit_username(username, id)
             if is_changed:
                 return JSONResponse(status_code=200, content={"detail": "OK: Username updated successfully."})
-            raise HTTPException(status_code=500, detail="Internal server error: Username is not updated.")
+            raise HTTPException(status_code=500, detail="Username is not updated, check id.")
         elif edit_only_username_or_email(email, username, password, confirm_password):
             is_changed = await edit_email(email, id)
             if is_changed:
                 return JSONResponse(status_code=200, content={"detail": "OK: Email updated successfully."})
-            raise HTTPException(status_code=500, detail="Internal server error: Email is not updated.")
+            raise HTTPException(status_code=500, detail="Email is not updated, check id or email.")
         elif edit_only_password(password, confirm_password, username, email):
             is_changed = await edit_password(password, confirm_password, id)
             if is_changed:
                 return JSONResponse(status_code=200, content={"detail": "OK: Password updated successfully."})
-            raise HTTPException(status_code=500, detail="Internal server error: Password is not updated.")
+            raise HTTPException(status_code=500, detail="Password is not updated, check id.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
@@ -246,21 +266,24 @@ async def edit_username(username: str, id: str) -> bool:
 
 async def edit_email(email: str, id: str) -> bool:
     try:
-        conn = pool.getconn()
-        cursor = conn.cursor()
-        query = ("""UPDATE users_auth
-                    SET email = %s
-                    WHERE id = %s""")
-        cursor.execute(query, (email, id))
-        conn.commit()
-        cursor.close()
-        pool.putconn(conn)
+        new_user = CreateUser()
+        is_email = await email_exists(email)
+        if not is_email and new_user.validate_email(email=email):
+            conn = pool.getconn()
+            cursor = conn.cursor()
+            query = ("""UPDATE users_auth
+                        SET email = %s
+                        WHERE id = %s""")
+            cursor.execute(query, (email, id))
+            conn.commit()
+            cursor.close()
+            pool.putconn(conn)
 
-        if cursor.rowcount > 0:
-            return True
-        else:
-            return False
-
+            if cursor.rowcount > 0:
+                return True
+            else:
+                return False
+        return False
     except psycopg2.Error as e:
         print(f"Error executing SQL query: {e}")
         raise HTTPException(status_code=500, detail="Database error")
@@ -326,3 +349,42 @@ async def delete_account(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
+
+async def token_acces(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        decoded_token = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM])
+
+        user_id = decoded_token.get("id")
+        if user_id:
+            db_user_id = await get_user_id(user_id)
+
+            if db_user_id is None:
+                raise HTTPException(status_code=404, detail="Could not find user")
+
+            if user_id == db_user_id:
+                return {"detail": "Access forbidden!"}
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=403, detail="Forbidden: Invalid token")
+
+
+async def get_user_id(id: str):
+    try:
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                       FROM users_auth
+                       WHERE id= %s""")
+        cursor.execute(query, (id,))
+        result = cursor.fetchone()
+        cursor.close()
+        pool.putconn(conn)
+
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Not Found: User not found.")
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={f"Internal server error: {e}"})

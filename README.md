@@ -9,9 +9,6 @@
 
 ## Endpoints
 
-### Hello
-> **GET** http://127.0.0.1:8000/hello
-
 ### Status
 > **GET** http://127.0.0.1:8000/status
 
@@ -64,3 +61,192 @@ body:
 >{
   "id": "a31a52b2-67b4-422d-bbc6-7553fa629296"
 }
+
+
+### Get all places
+> **GET** http://127.0.0.1:8000/api/get_all_places/
+
+auth:
+>Bearer Token
+
+
+### place
+> **GET** http://127.0.0.1:8000/api/place/
+
+body:
+> {
+  "id": "2319d5ad-0346-48a9-993e-f1dd7ad233a5"
+}
+
+auth:
+>Bearer Token
+
+
+### Get all favourites
+> **GET** http://127.0.0.1:8000/api/get_all_favourites
+
+auth:
+>Bearer Token
+
+
+### Location places
+> **GET** http://127.0.0.1:8000/api/location_places
+
+body:
+>{
+  "gps": "48.1405355220082, 17.115227264931488"
+}
+
+auth:
+>Bearer Token
+
+
+### Place category
+> **GET** http://127.0.0.1:8000/api/place_category
+
+body:
+>{
+    "category": "meals"
+}
+
+auth:
+>Bearer Token
+
+
+### Add favourite
+> **POST** http://127.0.0.1:8000/api/add_favourite
+
+body:
+>{
+    "activity_id": "f6a3b853-2f8c-4011-bf8e-5103c20a3ddc"
+}
+
+auth:
+>Bearer Token
+
+
+### Delete favourite
+> **POST** http://127.0.0.1:8000/api/delete_favourite
+
+body:
+>{
+    "activity_id": "f6a3b853-2f8c-4011-bf8e-5103c20a3ddc"
+}
+
+auth:
+>Bearer Token
+
+
+### Add edit note
+> **PUT** http://127.0.0.1:8000/api/add_edit_note
+
+body:
+>{
+    "activity_id": "f6a3b853-2f8c-4011-bf8e-5103c20a3ddc",
+    "note": "Dobre rezne maju"
+}
+
+auth:
+>Bearer Token
+
+
+### Delete note
+> **DELETE** http://127.0.0.1:8000/api/delete_note
+
+body:
+>{
+    "activity_id": "f6a3b853-2f8c-4011-bf8e-5103c20a3ddc"
+}
+
+auth:
+>Bearer Token
+
+
+### Get note
+> **GET** http://127.0.0.1:8000/api/get_note
+
+body:
+>{
+    "activity_id": "f6a3b853-2f8c-4011-bf8e-5103c20a3ddc"
+}
+
+auth:
+>Bearer Token
+
+
+### Add my place
+> **POST** http://127.0.0.1:8000/api/add_my_place
+
+body:
+>{
+    "name": "Testovacie miesto",
+    "image": "t1",
+    "description": "Miesto na testovanie",
+    "contact": "421912345678",
+    "address": "Testovacia adresa",
+    "gps": "48.1405355220086, 17.115227264931488",
+    "meals": "TRUE",
+    "accomodation": "TRUE",
+    "sport": "TRUE",
+    "hiking": "TRUE",
+    "fun": "TRUE",
+    "events": "TRUE"
+}
+
+auth:
+>Bearer Token
+
+
+### Edit my place
+> **PUT** http://127.0.0.1:8000/api/edit_my_place
+
+body:
+>{
+    "id": "5bc2a339-5c39-4cf4-bfb4-4b8bf51f17de",
+    "name": "Testovacie miesto po uprave",
+    "image": "t1",
+    "description": "Miesto na testovanie po uprave",
+    "contact": "421912345678",
+    "address": "Testovacia adresa",
+    "gps": "48.1405355220086, 17.115227264931488",
+    "meals": "FALSE",
+    "accomodation": "FALSE",
+    "sport": "FALSE",
+    "hiking": "FALSE",
+    "fun": "FALSE",
+    "events": "FALSE"
+}
+
+auth:
+>Bearer Token
+
+
+### Delete my place
+> **DELETE** http://127.0.0.1:8000/api/delete_my_place
+
+body:
+>{
+    "id": "5bc2a339-5c39-4cf4-bfb4-4b8bf51f17de"
+}
+
+auth:
+>Bearer Token
+
+
+### Get my places
+> **GET** http://127.0.0.1:8000/api/get_my_places
+
+auth:
+>Bearer Token
+
+
+### Get my place
+> **GET** http://127.0.0.1:8000/api/get_my_place
+
+body:
+>{
+    "id": "5bc2a339-5c39-4cf4-bfb4-4b8bf51f17de"
+}
+
+auth:
+>Bearer Token

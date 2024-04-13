@@ -3,11 +3,9 @@ from hashlib import pbkdf2_hmac
 import jwt
 from app.config.config import settings
 
-
 class Tokenization():
     access_token: str
     token_type: str
-
 
     # https://medium.com/@karthikeyan.ranasthala/build-a-jwt-based-authentication-rest-api-with-flask-and-mysql-5dc6d3d1cb82
     def password_salting(self) -> str:
@@ -26,5 +24,9 @@ class Tokenization():
     #
 
     def jwt_token_generalization(self, content):
-        encoded_content = jwt.encode(content, settings.JWT_SECRET_KEY, algorithm="HS256")
+        encoded_content = jwt.encode(content, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM)
         return encoded_content
+
+
+
+
