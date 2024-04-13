@@ -90,9 +90,9 @@ async def activities(request: Request) -> JSONResponse:
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM places
-                    where id=%s""")
-        cursor.execute(query, [str(id)])
-        data = cursor.fetchone()
+                    where id= %s""")
+        cursor.execute(query, [id])
+        data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
         pool.putconn(conn)
@@ -252,24 +252,16 @@ async def delete_favourit(request: Request) -> JSONResponse:
                     WHERE id = %s""")
         cursor.execute(query, [activity_id])
         data = cursor.fetchone()
-        cursor.close()
-        pool.putconn(conn)
         if data:
-            conn = pool.getconn()
-            cursor = conn.cursor()
-            query = ("""DELETE FROM places
-                        WHERE id = %s""")
-            cursor.execute(query, [activity_id])
-            conn.commit()
             query = ("""DELETE FROM favourites
                         WHERE id = %s""")
             cursor.execute(query, [activity_id])
             conn.commit()
             cursor.close()
             pool.putconn(conn)
-            return JSONResponse(status_code=201, content={"detail": "OK: Place added to favourites."})
+            return JSONResponse(status_code=201, content={"detail": "OK: Place deleted from favourites."})
         else:
-            return JSONResponse(status_code=205, content={"detail": "Place already in favourites"})
+            return JSONResponse(status_code=205, content={"detail": "Place not in favourites"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
@@ -287,8 +279,8 @@ async def add_note(request: Request) -> JSONResponse:
                     ON CONFLICT(id)
                     DO UPDATE
                     SET note = %s
-                    WHERE id = %s""")
-        cursor.execute(query, ([activity_id], [note], [note], [activity_id],))
+                    WHERE notes.id = %s""")
+        cursor.execute(query, (activity_id, note, note, activity_id))
         conn.commit()
         cursor.close()
         pool.putconn(conn)
@@ -311,7 +303,7 @@ async def add_note(request: Request) -> JSONResponse:
         data = cursor.fetchone()
         if data:
             query = ("""DELETE FROM notes
-                        WHERE id=%s""")
+                        WHERE id= %s""")
             cursor.execute(query, [activity_id])
             conn.commit()
             cursor.close()
@@ -320,7 +312,7 @@ async def add_note(request: Request) -> JSONResponse:
         else:
             cursor.close()
             pool.putconn(conn)
-            return JSONResponse(status_code=205, content={"detail": "OK: Note does not exist."})
+            return JSONResponse(status_code=205, content={"detail": "FAIL: Note does not exist."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
@@ -335,7 +327,7 @@ async def get_note(request: Request) -> JSONResponse:
                     FROM notes
                     WHERE id = %s""")
         cursor.execute(query, [activity_id])
-        data = cursor.fetchone()
+        data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
         pool.putconn(conn)
@@ -381,10 +373,11 @@ async def add_place(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.put("/api/edit_my_place/{place_id}")
-async def edit_place(place_id: str, request: Request) -> JSONResponse:
+@router.put("/api/edit_my_place")
+async def edit_place(request: Request) -> JSONResponse:
     try:
         input = await request.json()
+        place_id = input.get("id")
         name = input.get("name")
         image = input.get("image")
         description = input.get("description")
@@ -404,7 +397,7 @@ async def edit_place(place_id: str, request: Request) -> JSONResponse:
                     FROM my_places
                     WHERE id = %s""")
         cursor.execute(query, [place_id])
-        data = cursor.fetchone()
+        data = cursor.fetchall()
         if data:
             query = ("""DELETE FROM my_places
                         WHERE id=%s""")
@@ -432,10 +425,11 @@ async def edit_place(place_id: str, request: Request) -> JSONResponse:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.delete("/api/delete_my_place/{place_id}")
-async def edit_place(place_id: str, request: Request) -> JSONResponse:
+@router.delete("/api/delete_my_place")
+async def edit_place(request: Request) -> JSONResponse:
     try:
         input = await request.json()
+        place_id = input.get("id")
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
@@ -477,6 +471,28 @@ async def get_created_places() -> JSONResponse:
         if data:
             return JSONResponse(status_code=201, content={"note": records})
         else:
-            return JSONResponse(status_code=205, content={"detail": "Place does not have notes"})
+            return JSONResponse(status_code=205, content={"detail": "Place not found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+@router.get("/api/get_my_place")
+async def get_created_places(request: Request) -> JSONResponse:
+    try:
+        input = await request.json()
+        place_id = input.get("id")
+        conn = pool.getconn()
+        cursor = conn.cursor()
+        query = ("""SELECT *
+                    FROM my_places
+                    WHERE id = %s""")
+        cursor.execute(query, [place_id])
+        data = cursor.fetchall()
+        records = zip_objects_from_db(data, cursor)
+        cursor.close()
+        pool.putconn(conn)
+        if data:
+            return JSONResponse(status_code=201, content={"note": records})
+        else:
+            return JSONResponse(status_code=205, content={"detail": "Place not found"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
