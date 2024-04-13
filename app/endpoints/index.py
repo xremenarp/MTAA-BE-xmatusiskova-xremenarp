@@ -354,6 +354,7 @@ async def add_place(request: Request) -> JSONResponse:
         hiking = input.get("hiking")
         fun = input.get("fun")
         events = input.get("events")
+        #image_data = input.get("image_data")
         gen_uuid = uuid.uuid4()
 
         conn = pool.getconn()
@@ -364,7 +365,7 @@ async def add_place(request: Request) -> JSONResponse:
         conn.commit()
         query = ("""INSERT INTO places
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
-        cursor.execute(query, (str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun,events))
+        cursor.execute(query, (str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
         conn.commit()
         cursor.close()
         pool.putconn(conn)
@@ -390,6 +391,7 @@ async def edit_place(request: Request) -> JSONResponse:
         hiking = input.get("hiking")
         fun = input.get("fun")
         events = input.get("events")
+        #image_data = input.get("image_data")
 
         conn = pool.getconn()
         cursor = conn.cursor()
