@@ -2,7 +2,7 @@ import decimal
 from math import radians, sin, cos, sqrt, atan2
 from typing import Dict
 import uuid
-
+import base64
 import jwt
 from OpenSSL import crypto
 from datetime import datetime, timezone
@@ -307,6 +307,7 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
+
 @router.delete("/api/delete_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
@@ -336,6 +337,7 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
+
 @router.get("/api/get_note")
 async def get_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
@@ -359,6 +361,7 @@ async def get_note(request: Request, credentials: HTTPAuthorizationCredentials =
             return JSONResponse(status_code=205, content={"detail": "Place does not have notes"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
 
 @router.post("/api/add_my_place")
 async def add_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
@@ -453,6 +456,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
+
 @router.delete("/api/delete_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
@@ -485,6 +489,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
             return JSONResponse(status_code=205, content={"detail": "OK: Place not found."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
 
 @router.get("/api/get_my_places")
 async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
@@ -530,3 +535,30 @@ async def get_created_places(request: Request, credentials: HTTPAuthorizationCre
             return JSONResponse(status_code=205, content={"detail": "Place not found"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
+
+def upload_image(file_path, name):
+    drawing = open(file_path, 'rb').read()
+    conn = pool.getconn()
+    cursor = conn.cursor()
+    query = ("""UPDATE places
+                SET image_data = %s
+                WHERE name = %s""")
+    cursor.execute(query, (psycopg2.Binary(drawing), name))
+    conn.commit()
+    cursor.close()
+    pool.putconn(conn)
+
+#upload_image("C:\\Users\\petor\\Downloads\\escape_room.jpg","Escape room TRAPPED")
+#upload_image("C:\\Users\\petor\\Downloads\\koncert.jpg","Fajný koncert")
+#upload_image("C:\\Users\\petor\\Downloads\\dostihy.jpg","Závodisko - Dostihová dráha")
+#upload_image("C:\\Users\\petor\\Downloads\\kolkovna.jpg","Testovacie miesto")
+#upload_image("C:\\Users\\petor\\Downloads\\hradza.jpg","Petržalská hrádza")
+#upload_image("C:\\Users\\petor\\Downloads\\K2.jpg","Lezecká stena K2")
+#upload_image("C:\\Users\\petor\\Downloads\\sandberg.jpg","Sandberg")
+#upload_image("C:\\Users\\petor\\Downloads\\kacin.jpg","Kačín")
+#upload_image("C:\\Users\\petor\\Downloads\\kart_one_arena.jpg","Kart One Arena")
+#upload_image("C:\\Users\\petor\\Downloads\\sheraton.jpg","Sheraton")
+#upload_image("C:\\Users\\petor\\Downloads\\carlton.jpg","Radisson Blu Carlton Hotel Bratislava")
+#upload_image("C:\\Users\\petor\\Downloads\\be-about.jpg","BeAbout")
+#upload_image("C:\\Users\\petor\\Downloads\\kolkovna.jpg","Koľkovňa")
