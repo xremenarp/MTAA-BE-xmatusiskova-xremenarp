@@ -12,6 +12,9 @@
 ### Status
 > **GET** http://127.0.0.1:8000/status
 
+authors:
+> Peter Remenár, Mária Matušisková
+
 ### Sign up
 > **POST** http://127.0.0.1:8000/api/signup/
 
@@ -23,6 +26,9 @@ body:
   "confirm_password": "123"
 }
 
+author:
+> Mária Matušisková
+
 ### Login
 > **POST** http://127.0.0.1:8000/api/login/
 
@@ -31,6 +37,9 @@ body:
   "username": "John",
   "password": "123"
 }
+
+author:
+> Mária Matušisková
 
 ### Forgotten password
 > **PUT** http://127.0.0.1:8000/api/forgotten-password/
@@ -43,6 +52,9 @@ body:
   "confirm_password": "abc"
 }
 
+author:
+> Mária Matušisková
+
 ### Edit profile
 > **PATCH** http://127.0.0.1:8000/api/edit_profile/
 
@@ -53,6 +65,9 @@ body:
   "email": "jack@gmail.com"
 }
 
+author:
+> Mária Matušisková
+
 
 ### Delete account
 > **DELETE** http://127.0.0.1:8000/api/delete_account/
@@ -62,6 +77,9 @@ body:
   "id": "a31a52b2-67b4-422d-bbc6-7553fa629296"
 }
 
+author:
+> Mária Matušisková
+
 
 ### Get all places
 > **GET** http://127.0.0.1:8000/api/get_all_places/
@@ -69,6 +87,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### place
 > **GET** http://127.0.0.1:8000/api/place/
@@ -81,6 +101,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Get all favourites
 > **GET** http://127.0.0.1:8000/api/get_all_favourites
@@ -88,6 +110,8 @@ auth:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Location places
 > **GET** http://127.0.0.1:8000/api/location_places
@@ -100,6 +124,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Place category
 > **GET** http://127.0.0.1:8000/api/place_category
@@ -112,6 +138,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Add favourite
 > **POST** http://127.0.0.1:8000/api/add_favourite
@@ -124,6 +152,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Delete favourite
 > **POST** http://127.0.0.1:8000/api/delete_favourite
@@ -136,6 +166,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Add edit note
 > **PUT** http://127.0.0.1:8000/api/add_edit_note
@@ -149,6 +181,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Delete note
 > **DELETE** http://127.0.0.1:8000/api/delete_note
@@ -161,6 +195,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Get note
 > **GET** http://127.0.0.1:8000/api/get_note
@@ -173,6 +209,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Add my place
 > **POST** http://127.0.0.1:8000/api/add_my_place
@@ -196,6 +234,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Edit my place
 > **PUT** http://127.0.0.1:8000/api/edit_my_place
@@ -220,6 +260,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Delete my place
 > **DELETE** http://127.0.0.1:8000/api/delete_my_place
@@ -232,6 +274,8 @@ body:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Get my places
 > **GET** http://127.0.0.1:8000/api/get_my_places
@@ -239,6 +283,8 @@ auth:
 auth:
 >Bearer Token
 
+author:
+> Peter Remenár
 
 ### Get my place
 > **GET** http://127.0.0.1:8000/api/get_my_place
@@ -250,3 +296,6 @@ body:
 
 auth:
 >Bearer Token
+
+author:
+> Peter Remenár
