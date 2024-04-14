@@ -324,8 +324,10 @@ async def edit_password(password: str, confirm_password: str, id: str) -> bool:
 
 
 @router.delete("/api/delete_account/")
-async def delete_account(request: Request):
+async def delete_account(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
+        await token_acces(credentials)
+
         input_data = await request.json()
         user_id = input_data.get("id")
 
@@ -365,7 +367,7 @@ async def token_acces(credentials: HTTPAuthorizationCredentials = Depends(securi
                 raise HTTPException(status_code=404, detail="Could not find user")
 
             if user_id == db_user_id:
-                return {"detail": "Access forbidden!"}
+                return {"detail": "Access allowed!"}
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
