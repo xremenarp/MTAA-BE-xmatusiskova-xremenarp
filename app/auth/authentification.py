@@ -205,8 +205,10 @@ async def generate_new_hashed_password(password: str, confirm_password: str) -> 
 
 
 @router.patch("/api/edit_profile/")
-async def edit_profile(request: Request):
+async def edit_profile(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
+        await token_acces(credentials)
+
         input = await request.json()
         id = input.get("id")
         username = input.get("username")
