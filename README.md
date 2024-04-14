@@ -8,7 +8,7 @@
 ```docker run -p 127.0.0.1:8000:8000 --env NAME=[name] --env DATABASE_HOST=gateway.docker.internal --env DATABASE_PORT=[db_port] --env DATABASE_NAME=[db_name] --env DATABASE_USER=[db_user] --env DATABASE_PASSWORD=[db_password] --env JWT_SECRET_KEY=[secret_key] --env ALGORITHM=[algorithm] --name [name-container] [name]  ```
 
 authors:
-> Peter Remenár focused on developing authorization endpoints following the login process, ensuring secure access to resources. (mainly endpoints/index.py)
+> Peter Remenár focused on developing authorization endpoints following the login process, ensuring secure access to resources. (mainly endpoints/index.py).
 > Mária Matušisková was responsible for authentication and the implementation of JWT token generation, bolstering the security and integrity of user sessions. (mainly auth/authentification.py)
 
 ## Endpoints

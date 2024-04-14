@@ -9,5 +9,5 @@ RUN pip3 install -r requirements.txt --no-cache-dir
 
 EXPOSE 8000
 
-CMD hypercorn app.__main__:app --reload
+CMD uvicorn app.__main__:app --reload --host 0.0.0.0
 
