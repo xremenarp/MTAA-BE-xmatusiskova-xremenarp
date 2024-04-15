@@ -76,7 +76,7 @@ async def activities(credentials: HTTPAuthorizationCredentials = Depends(securit
         await token_acces(credentials)
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM places""")
         cursor.execute(query)
 
@@ -101,7 +101,7 @@ async def activities(request: Request, credentials: HTTPAuthorizationCredentials
         id = input.get("id")
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM places
                     where id= %s""")
         cursor.execute(query, [id])
@@ -123,7 +123,7 @@ async def favourites(credentials: HTTPAuthorizationCredentials = Depends(securit
         await token_acces(credentials)
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM favourites""")
         cursor.execute(query)
         data = cursor.fetchall()
@@ -147,7 +147,7 @@ async def location_activities(request: Request, credentials: HTTPAuthorizationCr
         gps = str(gps)
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM places""")
         cursor.execute(query)
         data = cursor.fetchall()
@@ -178,27 +178,27 @@ async def category(request: Request, credentials: HTTPAuthorizationCredentials =
         conn = pool_client.getconn()
         cursor = conn.cursor()
         if category == "meals":
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE meals='TRUE' """)
         elif category == "accomodation":
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE accomodation='TRUE' """)
         elif category == "sport":
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE sport='TRUE' """)
         elif category == "hiking":
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE hiking='TRUE' """)
         elif category == "fun":
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE fun='TRUE' """)
         elif category == "events":
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE events='TRUE' """)
         else:
@@ -228,7 +228,7 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
         activity_id = input.get("activity_id")
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM favourites
                     WHERE id = %s""")
         cursor.execute(query, [activity_id])
@@ -238,16 +238,14 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
         if not data:
             conn = pool_client.getconn()
             cursor = conn.cursor()
-
-            query = ("""SELECT *
+            query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                         FROM places
                         WHERE id = %s""")
             cursor.execute(query, [activity_id])
-            data = cursor.fetchone()
-            query = ("""INSERT INTO favourites (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
-            cursor.execute(query, (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
-                                   data[9], data[10], data[11], data[12], data[13]))
+            place_id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events = cursor.fetchone()
+            query = ("""INSERT INTO favourites (id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+            cursor.execute(query, (place_id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
             conn.commit()
             cursor.close()
             pool_client.putconn(conn)
@@ -266,7 +264,7 @@ async def delete_favourit(request: Request, credentials: HTTPAuthorizationCreden
         activity_id = input.get("activity_id")
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM favourites
                     WHERE id = %s""")
         cursor.execute(query, [activity_id])
@@ -422,7 +420,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
 
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM my_places
                     WHERE id = %s""")
         cursor.execute(query, [place_id])
@@ -463,7 +461,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
         place_id = input.get("id")
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM my_places
                     WHERE id = %s""")
         cursor.execute(query, [place_id])
@@ -494,7 +492,7 @@ async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends
         await token_acces(credentials)
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM my_places""")
         cursor.execute(query)
         data = cursor.fetchall()
@@ -516,7 +514,7 @@ async def get_created_places(request: Request, credentials: HTTPAuthorizationCre
         place_id = input.get("id")
         conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""SELECT *
+        query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
                     FROM my_places
                     WHERE id = %s""")
         cursor.execute(query, [place_id])
