@@ -17,7 +17,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth")
 pool = psycopg2.pool.SimpleConnectionPool(
     minconn=1,
     maxconn=10,
-    dbname=settings.DATABASE_NAME,
+    dbname=settings.DATABASE_NAME_SERVER,
     host=settings.DATABASE_HOST,
     port=settings.DATABASE_PORT,
     user=settings.DATABASE_USER,

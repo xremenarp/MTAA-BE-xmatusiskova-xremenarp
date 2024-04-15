@@ -18,10 +18,19 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth")
 security = HTTPBearer()
 
-pool = psycopg2.pool.SimpleConnectionPool(
+pool_client = psycopg2.pool.SimpleConnectionPool(
     minconn=1,
     maxconn=10,
-    dbname=settings.DATABASE_NAME,
+    dbname=settings.DATABASE_NAME_CLIENT,
+    host=settings.DATABASE_HOST,
+    port=settings.DATABASE_PORT,
+    user=settings.DATABASE_USER,
+    password=settings.DATABASE_PASSWORD
+)
+pool_server = psycopg2.pool.SimpleConnectionPool(
+    minconn=1,
+    maxconn=10,
+    dbname=settings.DATABASE_NAME_SERVER,
     host=settings.DATABASE_HOST,
     port=settings.DATABASE_PORT,
     user=settings.DATABASE_USER,
@@ -48,25 +57,24 @@ def zip_objects_from_db(data, cursor):
                      [serialize_datetime_and_decimal(value) for value in row])) for row in data]
 
 
-@router.get("/status")
+@router.get("/client/status")
 async def status() -> dict:
-    conn = pool.getconn()
+    conn = pool_client.getconn()
     cursor = conn.cursor()
     cursor.execute("SELECT version();")
     version = cursor.fetchone()[0]
     cursor.close()
-    pool.putconn(conn)
+    pool_client.putconn(conn)
     return {
         'version': version
     }
 
 
-@router.get("/api/get_all_places")
+@router.get("/client/get_all_places")
 async def activities(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM places""")
@@ -76,7 +84,7 @@ async def activities(credentials: HTTPAuthorizationCredentials = Depends(securit
         records = zip_objects_from_db(data, cursor)
 
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=200, content={"items": records})
         else:
@@ -85,14 +93,13 @@ async def activities(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/place")
+@router.get("/client/place")
 async def activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         id = input.get("id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM places
@@ -101,7 +108,7 @@ async def activities(request: Request, credentials: HTTPAuthorizationCredentials
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=200, content={"items": records})
         else:
@@ -110,12 +117,11 @@ async def activities(request: Request, credentials: HTTPAuthorizationCredentials
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/get_all_favourites")
+@router.get("/client/get_all_favourites")
 async def favourites(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM favourites""")
@@ -123,7 +129,7 @@ async def favourites(credentials: HTTPAuthorizationCredentials = Depends(securit
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=200, content={"items": records})
         else:
@@ -132,15 +138,14 @@ async def favourites(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/location_places")
+@router.get("/client/location_places")
 async def location_activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         gps = input.get("gps")
         gps = str(gps)
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM places""")
@@ -155,7 +160,7 @@ async def location_activities(request: Request, credentials: HTTPAuthorizationCr
 
         records = zip_objects_from_db(new_data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=200, content={"items": records})
         else:
@@ -164,14 +169,13 @@ async def location_activities(request: Request, credentials: HTTPAuthorizationCr
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/place_category")
+@router.get("/client/place_category")
 async def category(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         category = input.get("category")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         if category == "meals":
             query = ("""SELECT *
@@ -199,14 +203,14 @@ async def category(request: Request, credentials: HTTPAuthorizationCredentials =
                         WHERE events='TRUE' """)
         else:
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=204, content={"detail": "Category does not exist"})
 
         cursor.execute(query, category)
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=200, content={"items": records})
         else:
@@ -215,14 +219,14 @@ async def category(request: Request, credentials: HTTPAuthorizationCredentials =
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/api/add_favourite")
+@router.post("/client/add_favourite")
 async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
 
         input = await request.json()
         activity_id = input.get("activity_id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM favourites
@@ -230,9 +234,9 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
         cursor.execute(query, [activity_id])
         data = cursor.fetchone()
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if not data:
-            conn = pool.getconn()
+            conn = pool_client.getconn()
             cursor = conn.cursor()
 
             query = ("""SELECT *
@@ -240,13 +244,13 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
                         WHERE id = %s""")
             cursor.execute(query, [activity_id])
             data = cursor.fetchone()
-            query = ("""INSERT INTO favourites
+            query = ("""INSERT INTO favourites (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
             cursor.execute(query, (data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8],
                                    data[9], data[10], data[11], data[12], data[13]))
             conn.commit()
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=201, content={"detail": "OK: Place added to favourites."})
         else:
             return JSONResponse(status_code=205, content={"detail": "Place already in favourites"})
@@ -254,14 +258,13 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/api/delete_favourite")
+@router.post("/client/delete_favourite")
 async def delete_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         activity_id = input.get("activity_id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM favourites
@@ -274,7 +277,7 @@ async def delete_favourit(request: Request, credentials: HTTPAuthorizationCreden
             cursor.execute(query, [activity_id])
             conn.commit()
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=201, content={"detail": "OK: Place deleted from favourites."})
         else:
             return JSONResponse(status_code=205, content={"detail": "Place not in favourites"})
@@ -282,15 +285,14 @@ async def delete_favourit(request: Request, credentials: HTTPAuthorizationCreden
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.put("/api/add_edit_note")
+@router.put("/client/add_edit_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         activity_id = input.get("activity_id")
         note = input.get("note")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""INSERT INTO notes
                     VALUES (%s,%s)
@@ -301,21 +303,20 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
         cursor.execute(query, (activity_id, note, note, activity_id))
         conn.commit()
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         return JSONResponse(status_code=201, content={"detail": "OK: Note added to place."})
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.delete("/api/delete_note")
+@router.delete("/client/delete_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         activity_id = input.get("activity_id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM notes
@@ -328,24 +329,23 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
             cursor.execute(query, [activity_id])
             conn.commit()
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=201, content={"detail": "OK: Note deleted."})
         else:
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=205, content={"detail": "FAIL: Note does not exist."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/get_note")
+@router.get("/client/get_note")
 async def get_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         activity_id = input.get("activity_id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM notes
@@ -354,7 +354,7 @@ async def get_note(request: Request, credentials: HTTPAuthorizationCredentials =
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=201, content={"note": records})
         else:
@@ -363,11 +363,10 @@ async def get_note(request: Request, credentials: HTTPAuthorizationCredentials =
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/api/add_my_place")
+@router.post("/client/add_my_place")
 async def add_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         name = input.get("name")
         image = input.get("image")
@@ -384,28 +383,27 @@ async def add_place(request: Request, credentials: HTTPAuthorizationCredentials 
         #image_data = input.get("image_data")
         gen_uuid = uuid.uuid4()
 
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
-        query = ("""INSERT INTO my_places
+        query = ("""INSERT INTO my_places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
         cursor.execute(query,(str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
         conn.commit()
-        query = ("""INSERT INTO places
+        query = ("""INSERT INTO places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
         cursor.execute(query, (str(gen_uuid), name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
         conn.commit()
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         return JSONResponse(status_code=201, content={"detail": "OK: Place created."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.put("/api/edit_my_place")
+@router.put("/client/edit_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         place_id = input.get("id")
         name = input.get("name")
@@ -422,7 +420,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
         events = input.get("events")
         #image_data = input.get("image_data")
 
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM my_places
@@ -438,33 +436,32 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
                         WHERE id=%s""")
             cursor.execute(query, [place_id])
             conn.commit()
-            query = ("""INSERT INTO my_places
+            query = ("""INSERT INTO my_places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
             cursor.execute(query,(place_id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
             conn.commit()
-            query = ("""INSERT INTO places
+            query = ("""INSERT INTO places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
             cursor.execute(query, (place_id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun,events))
             conn.commit()
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=201, content={"detail": "OK: Place edited."})
         else:
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=205, content={"detail": "OK: Place not found."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.delete("/api/delete_my_place")
+@router.delete("/client/delete_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         place_id = input.get("id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM my_places
@@ -481,22 +478,21 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
             cursor.execute(query, [place_id])
             conn.commit()
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=201, content={"detail": "OK: Place deleted."})
         else:
             cursor.close()
-            pool.putconn(conn)
+            pool_client.putconn(conn)
             return JSONResponse(status_code=205, content={"detail": "OK: Place not found."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/api/get_my_places")
+@router.get("/client/get_my_places")
 async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM my_places""")
@@ -504,7 +500,7 @@ async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=201, content={"note": records})
         else:
@@ -512,14 +508,13 @@ async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.get("/api/get_my_place")
+@router.get("/client/get_my_place")
 async def get_created_places(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
-
         input = await request.json()
         place_id = input.get("id")
-        conn = pool.getconn()
+        conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
                     FROM my_places
@@ -528,7 +523,7 @@ async def get_created_places(request: Request, credentials: HTTPAuthorizationCre
         data = cursor.fetchall()
         records = zip_objects_from_db(data, cursor)
         cursor.close()
-        pool.putconn(conn)
+        pool_client.putconn(conn)
         if data:
             return JSONResponse(status_code=201, content={"note": records})
         else:
@@ -536,10 +531,50 @@ async def get_created_places(request: Request, credentials: HTTPAuthorizationCre
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
+@router.put("/client/update_databse")
+async def update_databse(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
+    try:
+        await token_acces(credentials)
+        conn = pool_client.getconn()
+        cursor = conn.cursor()
+        conn_server = pool_server.getconn()
+        cursor_server = conn_server.cursor()
+
+        query = ("""DELETE FROM places""")
+        cursor.execute(query)
+        conn.commit()
+
+        query = ("""SELECT * FROM places""")
+        cursor_server.execute(query)
+
+        pom = 0
+        while True:
+            row = cursor_server.fetchone()
+            if row is None:
+                break
+            place_id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events, image_data = row
+            query = ("""INSERT INTO places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""")
+            cursor.execute(query, (place_id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events))
+            conn.commit()
+            pom = 1
+
+        cursor.close()
+        cursor_server.close()
+        pool_client.putconn(conn)
+        pool_server.putconn(conn_server)
+
+        if pom == 1:
+            return JSONResponse(status_code=201, content={"note": "Records updated"})
+        else:
+            return JSONResponse(status_code=205, content={"detail": "Records not found"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
 
 def upload_image(file_path, name):
     drawing = open(file_path, 'rb').read()
-    conn = pool.getconn()
+    conn = pool_client.getconn()
     cursor = conn.cursor()
     query = ("""UPDATE places
                 SET image_data = %s
@@ -547,7 +582,7 @@ def upload_image(file_path, name):
     cursor.execute(query, (psycopg2.Binary(drawing), name))
     conn.commit()
     cursor.close()
-    pool.putconn(conn)
+    pool_client.putconn(conn)
 
 #upload_image("C:\\Users\\petor\\Downloads\\escape_room.jpg","Escape room TRAPPED")
 #upload_image("C:\\Users\\petor\\Downloads\\koncert.jpg","Fajný koncert")
