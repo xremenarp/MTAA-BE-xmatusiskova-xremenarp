@@ -76,31 +76,6 @@ async def activities(credentials: HTTPAuthorizationCredentials = Depends(securit
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-
-@router.get("/server/place")
-async def activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
-    try:
-        await token_acces(credentials)
-        input = await request.json()
-        id = input.get("id")
-        conn = pool_server.getconn()
-        cursor = conn.cursor()
-        query = ("""SELECT *
-                    FROM places
-                    where id= %s""")
-        cursor.execute(query, [id])
-        data = cursor.fetchall()
-        records = zip_objects_from_db(data, cursor)
-        cursor.close()
-        pool_server.putconn(conn)
-        if data:
-            return JSONResponse(status_code=200, content={"items": records})
-        else:
-            return JSONResponse(status_code=204, content={"detail": "No records found"})
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
-
-
 def upload_image(file_path, name):
     drawing = open(file_path, 'rb').read()
     conn = pool_server.getconn()

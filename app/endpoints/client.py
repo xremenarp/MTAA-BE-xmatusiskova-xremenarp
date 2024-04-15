@@ -57,7 +57,7 @@ def zip_objects_from_db(data, cursor):
                      [serialize_datetime_and_decimal(value) for value in row])) for row in data]
 
 
-@router.get("/client/status")
+@router.get("/status")
 async def status() -> dict:
     conn = pool_client.getconn()
     cursor = conn.cursor()
@@ -70,7 +70,7 @@ async def status() -> dict:
     }
 
 
-@router.get("/client/get_all_places")
+@router.get("/api/get_all_places")
 async def activities(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -93,7 +93,7 @@ async def activities(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/client/place")
+@router.get("/api/place")
 async def activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -117,7 +117,7 @@ async def activities(request: Request, credentials: HTTPAuthorizationCredentials
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/client/get_all_favourites")
+@router.get("/api/get_all_favourites")
 async def favourites(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -138,7 +138,7 @@ async def favourites(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/client/location_places")
+@router.get("/api/location_places")
 async def location_activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -169,7 +169,7 @@ async def location_activities(request: Request, credentials: HTTPAuthorizationCr
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/client/place_category")
+@router.get("/api/place_category")
 async def category(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -219,7 +219,7 @@ async def category(request: Request, credentials: HTTPAuthorizationCredentials =
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/client/add_favourite")
+@router.post("/api/add_favourite")
 async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -258,7 +258,7 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/client/delete_favourite")
+@router.post("/api/delete_favourite")
 async def delete_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -285,7 +285,7 @@ async def delete_favourit(request: Request, credentials: HTTPAuthorizationCreden
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.put("/client/add_edit_note")
+@router.put("/api/add_edit_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -310,7 +310,7 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.delete("/client/delete_note")
+@router.delete("/api/delete_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -339,7 +339,7 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/client/get_note")
+@router.get("/api/get_note")
 async def get_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -363,7 +363,7 @@ async def get_note(request: Request, credentials: HTTPAuthorizationCredentials =
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.post("/client/add_my_place")
+@router.post("/api/add_my_place")
 async def add_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -400,7 +400,7 @@ async def add_place(request: Request, credentials: HTTPAuthorizationCredentials 
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.put("/client/edit_my_place")
+@router.put("/api/edit_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -455,7 +455,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.delete("/client/delete_my_place")
+@router.delete("/api/delete_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -488,7 +488,7 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-@router.get("/client/get_my_places")
+@router.get("/api/get_my_places")
 async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -508,7 +508,7 @@ async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.get("/client/get_my_place")
+@router.get("/api/get_my_place")
 async def get_created_places(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
@@ -531,7 +531,7 @@ async def get_created_places(request: Request, credentials: HTTPAuthorizationCre
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.put("/client/update_databse")
+@router.put("/api/update_databse")
 async def update_databse(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
         await token_acces(credentials)
