@@ -40,6 +40,10 @@ async def signup(request: Request) -> JSONResponse:
         is_email = await email_exists(email)
         if not is_email:
             salty_password, hashed_password = await generate_hashed_password(username, email, password, confirm_password)
+
+            if salty_password is None and hashed_password is None:
+                return JSONResponse(status_code=403, content={"detail": "Forbidden: Access forbidden."})
+
             generated_uuid = uuid.uuid4()
             conn = pool.getconn()
             cursor = conn.cursor()
@@ -58,13 +62,14 @@ async def signup(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-async def generate_hashed_password(username: str, email: str, password: str, confirm_password: str) -> (str, str):
+async def generate_hashed_password(username: str, email: str, password: str, confirm_password: str):
     try:
         if check_signup_input(username, email, password, confirm_password):
             secure_password = Tokenization()
             salty_password = secure_password.password_salting()
             hashed_password = secure_password.password_hashing(password, salty_password)
             return salty_password, hashed_password
+        return (None, None)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
@@ -88,7 +93,6 @@ async def email_exists(email: str) -> bool:
         result = cursor.fetchone()[0]
         cursor.close()
         pool.putconn(conn)
-
         if result == 0:
             return False
         return True
@@ -108,8 +112,8 @@ async def login(request: Request):
 
         if user_token and user_token is not False:
             return {"jwt_token": user_token}
-        else:
-            raise HTTPException(status_code=401, detail={"Unauthorized"})
+
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     except Exception as e:
         raise HTTPException(status_code=500, detail={f"Internal server error: {e}"})
 
@@ -125,7 +129,7 @@ async def get_user(username: str, password: str):
     cursor.close()
     pool.putconn(conn)
 
-    if len(record) == 5:
+    if record is not None and len(record) == 5:
         hashed_password = record[4]
         salty_password = record[3]
         get_password = Tokenization()
@@ -152,6 +156,10 @@ async def forgotten_password(request: Request) -> JSONResponse:
         if not (email and password and confirm_password):
             return JSONResponse(status_code=400, content={"detail": "Bad request: All fields are required."})
 
+        is_email = await email_exists(email)
+        if not is_email:
+            return JSONResponse(status_code=403, content={"detail": "Forbidden: Access forbidden."})
+
         conn = pool.getconn()
         cursor = conn.cursor()
         query = ("""SELECT email
@@ -163,10 +171,8 @@ async def forgotten_password(request: Request) -> JSONResponse:
         cursor.close()
         pool.putconn(conn)
 
-        if check_email(record, email):
-            JSONResponse(status_code=200, content={"detail": "OK: User found"})
-        else:
-            raise HTTPException(status_code=404, detail={"Not found: User not found"})
+        if check_email(record, email) is False:
+            return JSONResponse(status_code=404, content={"Not found": "User not found"})
 
         salty_password, hashed_password = await generate_new_hashed_password(password, confirm_password)
 
@@ -187,7 +193,7 @@ async def forgotten_password(request: Request) -> JSONResponse:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
 
-def check_email(record, email: str) -> bool:
+def check_email(record: object, email: str) -> bool:
     return record[0] == email
 
 
@@ -207,7 +213,10 @@ async def generate_new_hashed_password(password: str, confirm_password: str) -> 
 @router.patch("/api/edit_profile/")
 async def edit_profile(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
 
         input = await request.json()
         id = input.get("id")
@@ -223,17 +232,17 @@ async def edit_profile(request: Request, credentials: HTTPAuthorizationCredentia
             is_changed = await edit_username(username, id)
             if is_changed:
                 return JSONResponse(status_code=200, content={"detail": "OK: Username updated successfully."})
-            raise HTTPException(status_code=500, detail="Username is not updated, check id.")
+            return JSONResponse(status_code=500, content={"detail": "Username is not updated, check id."})
         elif edit_only_username_or_email(email, username, password, confirm_password):
             is_changed = await edit_email(email, id)
             if is_changed:
                 return JSONResponse(status_code=200, content={"detail": "OK: Email updated successfully."})
-            raise HTTPException(status_code=500, detail="Email is not updated, check id or email.")
+            return JSONResponse(status_code=500, content={"detail": "Email is not updated, check id or email."})
         elif edit_only_password(password, confirm_password, username, email):
             is_changed = await edit_password(password, confirm_password, id)
             if is_changed:
                 return JSONResponse(status_code=200, content={"detail": "OK: Password updated successfully."})
-            raise HTTPException(status_code=500, detail="Password is not updated, check id.")
+            return JSONResponse(status_code=500, content={"detail": "Password is not updated, check id."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
@@ -326,7 +335,10 @@ async def edit_password(password: str, confirm_password: str, id: str) -> bool:
 @router.delete("/api/delete_account/")
 async def delete_account(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
 
         input_data = await request.json()
         user_id = input_data.get("id")
@@ -364,7 +376,7 @@ async def token_acces(credentials: HTTPAuthorizationCredentials = Depends(securi
             db_user_id = await get_user_id(user_id)
 
             if db_user_id is None:
-                raise HTTPException(status_code=404, detail="Could not find user")
+                return None
 
             if user_id == db_user_id:
                 return {"detail": "Access allowed!"}
@@ -388,7 +400,7 @@ async def get_user_id(id: str):
         pool.putconn(conn)
 
         if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Not Found: User not found.")
+            return None
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail={f"Internal server error: {e}"})

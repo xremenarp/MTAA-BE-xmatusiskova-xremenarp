@@ -73,7 +73,11 @@ async def status() -> dict:
 @router.get("/api/get_all_places")
 async def activities(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
@@ -96,7 +100,11 @@ async def activities(credentials: HTTPAuthorizationCredentials = Depends(securit
 @router.get("/api/place")
 async def activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         id = input.get("id")
         conn = pool_client.getconn()
@@ -120,7 +128,11 @@ async def activities(request: Request, credentials: HTTPAuthorizationCredentials
 @router.get("/api/get_all_favourites")
 async def favourites(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
@@ -141,7 +153,11 @@ async def favourites(credentials: HTTPAuthorizationCredentials = Depends(securit
 @router.get("/api/location_places")
 async def location_activities(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         gps = input.get("gps")
         gps = str(gps)
@@ -172,7 +188,11 @@ async def location_activities(request: Request, credentials: HTTPAuthorizationCr
 @router.get("/api/place_category")
 async def category(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         category = input.get("category")
         conn = pool_client.getconn()
@@ -222,7 +242,10 @@ async def category(request: Request, credentials: HTTPAuthorizationCredentials =
 @router.post("/api/add_favourite")
 async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
 
         input = await request.json()
         activity_id = input.get("activity_id")
@@ -259,7 +282,11 @@ async def add_favourit(request: Request, credentials: HTTPAuthorizationCredentia
 @router.post("/api/delete_favourite")
 async def delete_favourit(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool_client.getconn()
@@ -286,7 +313,11 @@ async def delete_favourit(request: Request, credentials: HTTPAuthorizationCreden
 @router.put("/api/add_edit_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         activity_id = input.get("activity_id")
         note = input.get("note")
@@ -311,7 +342,11 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
 @router.delete("/api/delete_note")
 async def add_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool_client.getconn()
@@ -340,7 +375,11 @@ async def add_note(request: Request, credentials: HTTPAuthorizationCredentials =
 @router.get("/api/get_note")
 async def get_note(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         activity_id = input.get("activity_id")
         conn = pool_client.getconn()
@@ -364,7 +403,11 @@ async def get_note(request: Request, credentials: HTTPAuthorizationCredentials =
 @router.post("/api/add_my_place")
 async def add_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         name = input.get("name")
         image = input.get("image")
@@ -401,7 +444,11 @@ async def add_place(request: Request, credentials: HTTPAuthorizationCredentials 
 @router.put("/api/edit_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         place_id = input.get("id")
         name = input.get("name")
@@ -456,7 +503,11 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
 @router.delete("/api/delete_my_place")
 async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         place_id = input.get("id")
         conn = pool_client.getconn()
@@ -489,7 +540,11 @@ async def edit_place(request: Request, credentials: HTTPAuthorizationCredentials
 @router.get("/api/get_my_places")
 async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         conn = pool_client.getconn()
         cursor = conn.cursor()
         query = ("""SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events
@@ -509,7 +564,11 @@ async def get_created_places(credentials: HTTPAuthorizationCredentials = Depends
 @router.get("/api/get_my_place")
 async def get_created_places(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         input = await request.json()
         place_id = input.get("id")
         conn = pool_client.getconn()
@@ -532,7 +591,11 @@ async def get_created_places(request: Request, credentials: HTTPAuthorizationCre
 @router.put("/api/update_databse")
 async def update_databse(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         conn = pool_client.getconn()
         cursor = conn.cursor()
         conn_server = pool_server.getconn()

@@ -59,7 +59,11 @@ async def status() -> dict:
 @router.get("/server/get_all_places")
 async def activities(credentials: HTTPAuthorizationCredentials = Depends(security)) -> JSONResponse:
     try:
-        await token_acces(credentials)
+        token_access = await token_acces(credentials)
+
+        if token_access is None:
+            return JSONResponse(status_code=404, content={"Not Found": "User not found."})
+
         conn = pool_server.getconn()
         cursor = conn.cursor()
         query = ("""SELECT *
