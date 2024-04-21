@@ -50,10 +50,10 @@ def generate_ssl_cert_and_key(key_length=2048, days_valid=365):
     print("SSL certificate and key generated successfully.")
 
 #generate_ssl_cert_and_key()
-from hypercorn.config import Config
-config = Config()
+########from hypercorn.config import Config
+#######config = Config()
 ##config.bind = ["0.0.0.0:443"]
-config.bind = ["192.168.0.63:8000"] ##bez https
+######config.bind = ["192.168.0.63:8000"] ##bez https
 #config.bind = ["192.168.0.63:443"] ##so https
 #config.certfile = "cert.pem"
 #config.keyfile = "key.pem"
