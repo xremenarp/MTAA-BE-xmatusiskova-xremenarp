@@ -333,14 +333,14 @@ async def edit_password(password: str, confirm_password: str, id: str) -> bool:
 
 
 @router.delete("/api/delete_account/")
-async def delete_account(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def delete_account(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token_access = await token_acces(credentials)
 
         if token_access is None:
             return JSONResponse(status_code=404, content={"Not Found": "User not found."})
 
-        input_data = await request.json()
+
         user_id = token_access
 
         if not user_id:
