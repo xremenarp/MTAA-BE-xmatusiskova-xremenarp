@@ -341,7 +341,7 @@ async def delete_account(request: Request, credentials: HTTPAuthorizationCredent
             return JSONResponse(status_code=404, content={"Not Found": "User not found."})
 
         input_data = await request.json()
-        user_id = input_data.get("id")
+        user_id = token_access
 
         if not user_id:
             raise HTTPException(status_code=400, detail="Bad Request: User ID is required.")
