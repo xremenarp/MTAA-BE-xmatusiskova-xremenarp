@@ -374,11 +374,10 @@ async def token_acces(credentials: HTTPAuthorizationCredentials = Depends(securi
         user_id = decoded_token.get("id")
         if user_id:
             db_user_id = await get_user_id(user_id)
-
-            if db_user_id is None:
+            if db_user_id[0] is None:
                 return None
 
-            if user_id == db_user_id:
+            if user_id == db_user_id[0]:
                 return {"detail": "Access allowed!"}
 
     except jwt.ExpiredSignatureError:
