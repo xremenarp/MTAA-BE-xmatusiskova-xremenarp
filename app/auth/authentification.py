@@ -219,7 +219,7 @@ async def edit_profile(request: Request, credentials: HTTPAuthorizationCredentia
             return JSONResponse(status_code=404, content={"Not Found": "User not found."})
 
         input = await request.json()
-        id = input.get("id")
+        id = token_access
         username = input.get("username")
         email = input.get("email")
         password = input.get("password")
@@ -378,7 +378,7 @@ async def token_acces(credentials: HTTPAuthorizationCredentials = Depends(securi
                 return None
 
             if user_id == db_user_id[0]:
-                return {"detail": "Access allowed!"}
+                return user_id
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
