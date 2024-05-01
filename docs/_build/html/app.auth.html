@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.auth package &mdash; mtaa 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=8d563738"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="app.config package" href="app.config.html" />
+    <link rel="prev" title="app package" href="app.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            mtaa
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">app</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="app.html">app package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="app.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">app.auth package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.config.html">app.config package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.endpoints.html">app.endpoints package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="app.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.html#module-app.router">app.router module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.html#module-app">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">mtaa</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">app</a></li>
+          <li class="breadcrumb-item"><a href="app.html">app package</a></li>
+      <li class="breadcrumb-item active">app.auth package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/app.auth.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="app-auth-package">
+<h1>app.auth package<a class="headerlink" href="#app-auth-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-app.auth.CreateUser">
+<span id="app-auth-createuser-module"></span><h2>app.auth.CreateUser module<a class="headerlink" href="#module-app.auth.CreateUser" title="Link to this heading"></a></h2>
+<p>This file is focused on user’s input to validates it.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.CreateUser.</span></span><span class="sig-name descname"><span class="pre">CreateUser</span></span><a class="reference internal" href="_modules/app/auth/CreateUser.html#CreateUser"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.CreateUser.CreateUser" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>class CreateUser specifies user’s input</p>
+<dl class="simple">
+<dt>Attributes:</dt><dd><p>username: A string representing a name of user.
+email: A string representing an email of user.
+password: A string representing a password of user.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser.check_length_input">
+<span class="sig-name descname"><span class="pre">check_length_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/CreateUser.html#CreateUser.check_length_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.CreateUser.CreateUser.check_length_input" title="Link to this definition"></a></dt>
+<dd><p>Checks user’s input length, if they meet database requirements.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>kwargs:</dt><dd><p>Represents keywords arguments of user’s input.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If the kwargs arguments are all true, then return True.
+Else return False.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser.email">
+<span class="sig-name descname"><span class="pre">email</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#app.auth.CreateUser.CreateUser.email" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser.password">
+<span class="sig-name descname"><span class="pre">password</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#app.auth.CreateUser.CreateUser.password" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser.username">
+<span class="sig-name descname"><span class="pre">username</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#app.auth.CreateUser.CreateUser.username" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser.validate_email">
+<span class="sig-name descname"><span class="pre">validate_email</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/CreateUser.html#CreateUser.validate_email"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.CreateUser.CreateUser.validate_email" title="Link to this definition"></a></dt>
+<dd><p>Checks if the email looks as email. If the input meets requirements for email.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>kwargs:</dt><dd><p>Represents keywords arguments of user’s input.
+Should be an email.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>By using re library it will check regex with value and decide
+if it is true or not.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="app.auth.CreateUser.CreateUser.validate_input">
+<span class="sig-name descname"><span class="pre">validate_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/CreateUser.html#CreateUser.validate_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.CreateUser.CreateUser.validate_input" title="Link to this definition"></a></dt>
+<dd><p>Checks user’s input length.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>kwargs:</dt><dd><p>Represents keywords arguments.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If the function check_length_input return True, then return True.
+Else return False.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-app.auth.Tokenization">
+<span id="app-auth-tokenization-module"></span><h2>app.auth.Tokenization module<a class="headerlink" href="#module-app.auth.Tokenization" title="Link to this heading"></a></h2>
+<p>This file is focused on password security and jwt token generalization.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="app.auth.Tokenization.Tokenization">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.Tokenization.</span></span><span class="sig-name descname"><span class="pre">Tokenization</span></span><a class="reference internal" href="_modules/app/auth/Tokenization.html#Tokenization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.Tokenization.Tokenization" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Tokenization class for handling token-related operations.</p>
+<p>This class provides methods for password salting, password hashing,
+and JWT token generalization.</p>
+<dl class="simple">
+<dt>Attributes:</dt><dd><p>access_token: The access token string.
+token_type: The type of token.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="app.auth.Tokenization.Tokenization.access_token">
+<span class="sig-name descname"><span class="pre">access_token</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#app.auth.Tokenization.Tokenization.access_token" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="app.auth.Tokenization.Tokenization.jwt_token_generalization">
+<span class="sig-name descname"><span class="pre">jwt_token_generalization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">content</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/app/auth/Tokenization.html#Tokenization.jwt_token_generalization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.Tokenization.Tokenization.jwt_token_generalization" title="Link to this definition"></a></dt>
+<dd><p>Generate a JWT token with the provided content.
+The content representing JSON object, in this case user id.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>content: The content to be encoded into the token.</p>
+</dd>
+<dt>Returns:</dt><dd><p>string: The encoded JWT token.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="app.auth.Tokenization.Tokenization.password_hashing">
+<span class="sig-name descname"><span class="pre">password_hashing</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">original_pass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">salty_pass</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/app/auth/Tokenization.html#Tokenization.password_hashing"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.Tokenization.Tokenization.password_hashing" title="Link to this definition"></a></dt>
+<dd><p>Generate a hashed password using PBKDF2-HMAC.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>original_pass: The original password from user’s input.
+salty_pass: The salted password generated from password_salting function.</p>
+</dd>
+<dt>Returns:</dt><dd><p>string: The hashed password in hexadecimal format.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="app.auth.Tokenization.Tokenization.password_salting">
+<span class="sig-name descname"><span class="pre">password_salting</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="reference internal" href="_modules/app/auth/Tokenization.html#Tokenization.password_salting"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.Tokenization.Tokenization.password_salting" title="Link to this definition"></a></dt>
+<dd><p>Generate a random salt for password salting.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>string: The generated salt in hexadecimal format.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="app.auth.Tokenization.Tokenization.token_type">
+<span class="sig-name descname"><span class="pre">token_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#app.auth.Tokenization.Tokenization.token_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="module-app.auth.authentication">
+<span id="app-auth-authentication-module"></span><h2>app.auth.authentication module<a class="headerlink" href="#module-app.auth.authentication" title="Link to this heading"></a></h2>
+<p>Defines authentication functions and endpoints for API requests and related attributes.</p>
+<p>This is a part where user in BE needs to be authenticated in the beginning of the app.
+The user can sign up, login, delete account, reset his password if forgotten or edit his data.
+Except of that, this module also checks accessibility of user by his automatically
+generated token.</p>
+<dl>
+<dt>A brief overview of exported classes and their usage:</dt><dd><dl>
+<dt>router = APIRouter()</dt><dd><dl class="simple">
+<dt>in any request, example:</dt><dd><p>&#64;router.post(“/api/signup/”)</p>
+</dd>
+</dl>
+</dd>
+<dt>security = HTTPBearer()</dt><dd><dl class="simple">
+<dt>in the authorization requests of user, example:</dt><dd><dl class="simple">
+<dt>async def edit_profile(request: Request, credentials: HTTPAuthorizationCredentials</dt><dd><p>= Depends(security)):</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+<dt>new_user = CreateUser()</dt><dd><dl class="simple">
+<dt>for the functions that validate inputs of user, example:</dt><dd><dl class="simple">
+<dt>new_user.validate_input(username=username, email=email, password=password,</dt><dd><p>confirm_password=confirm_password) and new_user.validate_email(email=email)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+<dt>secure_password = Tokenization()</dt><dd><dl class="simple">
+<dt>for generating tokens and hashing user’s password, example:</dt><dd><p>salty_password = secure_password.password_salting()</p>
+</dd>
+</dl>
+</dd>
+<dt>for handling database connection:</dt><dd><dl>
+<dt>pool = psycopg2.pool.SimpleConnectionPool(</dt><dd><blockquote>
+<div><p>minconn=1,
+maxconn=10,
+dbname=settings.DATABASE_NAME_SERVER,
+host=settings.DATABASE_HOST,
+port=settings.DATABASE_PORT,
+user=settings.DATABASE_USER,
+password=settings.DATABASE_PASSWORD</p>
+</div></blockquote>
+<p>)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.check_passwords_equality">
+<span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">check_passwords_equality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#check_passwords_equality"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.check_passwords_equality" title="Link to this definition"></a></dt>
+<dd><p>Checks passwords equality between argument password and confirm_password.
+They should be the same.</p>
+<p>Retrieves user’s input data of password and confirmation password.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>password:</dt><dd><p>User’s input of password.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If the passwords are equal then True. If not then False.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.check_signup_input">
+<span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">check_signup_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#check_signup_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.check_signup_input" title="Link to this definition"></a></dt>
+<dd><p>Validates user input and checks equality of passwords.</p>
+<p>Retrieves user’s input data as username, email, password and confirmation password,
+and validate this data.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>username:</dt><dd><p>User’s input of username.</p>
+</dd>
+<dt>email:</dt><dd><p>User’s input of email.</p>
+</dd>
+<dt>password:</dt><dd><p>User’s input of password.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If is everything correct then True. If not then False.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.delete_account">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">delete_account</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#delete_account"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.delete_account" title="Link to this definition"></a></dt>
+<dd><p>Deletes whole user’s data from the system.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the token is wrong:</dt><dd><p>INFO:     127.0.0.1:62356 - “DELETE /api/delete_note HTTP/1.1” 500 Internal Server Error
+{</p>
+<blockquote>
+<div><p>“detail”: “Internal server error: cannot access local variable ‘token_access’
+where it is not associated with a value”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the user is deleted successfully:</dt><dd><p>INFO:     127.0.0.1:62476 - “DELETE /api/delete_account/ HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><p>“detail”: “OK: Account deleted successfully.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred in the SQL query or database connection.</dt><dd><p>psycopg2.Error instance with status code 500.</p>
+</dd>
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.edit_email">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">edit_email</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#edit_email"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.edit_email" title="Link to this definition"></a></dt>
+<dd><p>If the user choose to edit email, then this function handles it
+by SQL query updating database data of user.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>email:</dt><dd><p>User’s input of email  to change/update.</p>
+</dd>
+<dt>id:</dt><dd><p>Id of user from the token.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value. For example:</p>
+<dl class="simple">
+<dt>If the email is changed successfully:</dt><dd><p>Then returns True.</p>
+</dd>
+<dt>Else:</dt><dd><p>Returns False.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Returned response is always boolean.</p>
+<dl class="simple">
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred in the SQL query or database connection.</dt><dd><p>psycopg2.Error instance with status code 500.</p>
+</dd>
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.edit_only_password">
+<span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">edit_only_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#edit_only_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.edit_only_password" title="Link to this definition"></a></dt>
+<dd><p>Checks if the user wants to change password.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>password:</dt><dd><p>User’s input of password.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password.</p>
+</dd>
+<dt>username:</dt><dd><p>User’s input of username, the wanted value is None.</p>
+</dd>
+<dt>email:</dt><dd><p>User’s input of email, the wanted value is None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If the password and confirm_password is True an others are False, then return True.
+Else return False.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.edit_only_username_or_email">
+<span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">edit_only_username_or_email</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attribute_to_change</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stay_attribute</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#edit_only_username_or_email"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.edit_only_username_or_email" title="Link to this definition"></a></dt>
+<dd><p>Checks if the user wants to change username or email.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>attribute_to_change:</dt><dd><p>User’s input of username or email.</p>
+</dd>
+<dt>stay_attribute:</dt><dd><p>User’s input of username or email.
+If is in the attribute_to_change username then in this will be email and vice versa.
+The wanted value is None.</p>
+</dd>
+<dt>password:</dt><dd><p>User’s input of password, the wanted value is None.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password, the wanted value is None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If the attribute_to_change is True an others are False, then return True.
+Else return False.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.edit_password">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">edit_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#edit_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.edit_password" title="Link to this definition"></a></dt>
+<dd><p>If the user choose to edit password, then this function handles it
+by SQL query updating database data of user.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>password:</dt><dd><p>User’s input of password to change/update.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password to check equality with password.</p>
+</dd>
+<dt>id:</dt><dd><p>Id of user from the token.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value. For example:</p>
+<dl class="simple">
+<dt>If the password is changed successfully:</dt><dd><p>Then returns True.</p>
+</dd>
+<dt>Else:</dt><dd><p>Returns False.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Returned response is always boolean.</p>
+<dl class="simple">
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred in the SQL query or database connection.</dt><dd><p>psycopg2.Error instance with status code 500.</p>
+</dd>
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.edit_profile">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">edit_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#edit_profile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.edit_profile" title="Link to this definition"></a></dt>
+<dd><p>Edits profile of user, by updating his data from the user input.
+Always can be change only one data at once of user.</p>
+<p>Retrieves user’s input data as username, email, password and confirmation password,
+then validate them and update in database.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the token is wrong:</dt><dd><p>INFO:     127.0.0.1:60478 - “PATCH /api/edit_profile/ HTTP/1.1”” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“Forbidden: Invalid token”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>if the input is missing, nothing is updated:</dt><dd><p>INFO:     127.0.0.1:60478 - “PATCH /api/edit_profile/ HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><p>“status”: “No changes were made.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the input is correct and user is authorized, as example email:</dt><dd><p>INFO:     127.0.0.1:60599 - “PATCH /api/edit_profile/ HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><p>“detail”: “OK: Email updated successfully.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the input is correct and user is authorized, but email already exists,</dt><dd><dl>
+<dt>as example email:</dt><dd><p>INFO:     127.0.0.1:60652 - “PATCH /api/edit_profile/ HTTP/1.1” 500 Internal Server Error
+{</p>
+<blockquote>
+<div><p>“detail”: “Email is not updated, check id or email.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.edit_username">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">edit_username</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#edit_username"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.edit_username" title="Link to this definition"></a></dt>
+<dd><p>If the user choose to edit username, then this function handles it
+by SQL query updating database data of user.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>username:</dt><dd><p>User’s input of username  to change/update.</p>
+</dd>
+<dt>id:</dt><dd><p>Id of user from the token.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value. For example:</p>
+<dl class="simple">
+<dt>If the username is changed successfully:</dt><dd><p>Then returns True.</p>
+</dd>
+<dt>Else:</dt><dd><p>Returns False.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Returned response is always boolean.</p>
+<dl class="simple">
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred in the SQL query or database connection.</dt><dd><p>psycopg2.Error instance with status code 500.</p>
+</dd>
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.email_exists">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">email_exists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#email_exists"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.email_exists" title="Link to this definition"></a></dt>
+<dd><p>Checking if the email is already in the database.</p>
+<p>Retrieves user’s input data of an email and searching
+email in the database by SQL query.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>email:</dt><dd><p>User’s input of email.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A boolean value (True or False).</p>
+<p>If the email is not in the database then False. If does exist then True.</p>
+<p>Returned response is always boolean.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.forgotten_password">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">forgotten_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#forgotten_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.forgotten_password" title="Link to this definition"></a></dt>
+<dd><blockquote>
+<div><p>If the user forgotten password, this function can change/update his password
+and generate new hashed password.</p>
+<p>Retrieves user’s input data as email, password, confirm_password into system.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<dl>
+<dt>Returns:</dt><dd><blockquote>
+<div><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<dl>
+<dt>If the password is changed successfully:</dt><dd><p>INFO:     127.0.0.1:58563 - “PUT /api/forgotten-password/ HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><p>“detail”: “OK: Password updated successfully”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If one of the input values are missing:</dt><dd><p>INFO:     127.0.0.1:58751 - “PUT /api/forgotten-password/ HTTP/1.1” 400 Bad Request
+{</p>
+<blockquote>
+<div><p>“detail”: “Bad request: All fields are required.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the email is invalid:</dt><dd><p>INFO:     127.0.0.1:58876 - “PUT /api/forgotten-password/ HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Forbidden: Access forbidden.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred in the SQL query or database connection.</dt><dd><p>psycopg2.Error instance with status code 500.</p>
+</dd>
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.generate_hashed_password">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">generate_hashed_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">email</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#generate_hashed_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.generate_hashed_password" title="Link to this definition"></a></dt>
+<dd><p>Generating a hash password according to input user’s password.</p>
+<p>Retrieves user’s input data as username, email, password and confirmation password,
+and validate this data. Then generate password by Tokenization class functions.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>username:</dt><dd><p>User’s input of username.</p>
+</dd>
+<dt>email:</dt><dd><p>User’s input of email.</p>
+</dd>
+<dt>password:</dt><dd><p>User’s input of password.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A tuple of salty_password and hashed_password or if not successful then None and None.
+For example:</p>
+<blockquote>
+<div><p>user password is: “125”</p>
+<p>the salty_password is: “c188d9111ecd9c8310c4775afdb2f166”
+the hashed_password is: “bb1ca6e6c5ce37d2020c62097d43734baa6ea3f0d99b978b624b9c98fea23d25”</p>
+</div></blockquote>
+<p>Returned response is always tuple. The salty password is important due to security of
+the user’s data.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.generate_new_hashed_password">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">generate_new_hashed_password</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">password:</span> <span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confirm_password:</span> <span class="pre">str)</span> <span class="pre">-&gt;</span> <span class="pre">(&lt;class</span> <span class="pre">'str'&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">&lt;class</span> <span class="pre">'str'&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#generate_new_hashed_password"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.generate_new_hashed_password" title="Link to this definition"></a></dt>
+<dd><p>Generates new hashed password after signup or forgotten password.</p>
+<p>Retrieves user’s input data as password and confirm_password into system.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>password:</dt><dd><p>User’s input of password.</p>
+</dd>
+<dt>confirm_password:</dt><dd><p>User’s input of confirm_password.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>Tuple of salty_password and hashed_password or unsuccessful status.
+For example:</p>
+<dl class="simple">
+<dt>If successful:</dt><dd><p>(4ab5a6eeb8c11c58158b5b91880f6bd3, ff17345a32fe7cdfe1b47b8ac37c4979cc5f6e9a0487448c082b5a83d4164fa0)</p>
+</dd>
+<dt>else:</dt><dd><p>“status”: “Passwords are not equal.” error 500</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Returned response is tuple or JSON object</p>
+<dl class="simple">
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.get_user">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">get_user</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">username</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#get_user"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.get_user" title="Link to this definition"></a></dt>
+<dd><p>Function from the login process to find user in the system
+according to his name and password by SQL query.</p>
+<p>Retrieves user’s input data as username and password to login into system.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>username:</dt><dd><p>User’s input of username.</p>
+</dd>
+<dt>password:</dt><dd><p>User’s input of password.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A generated jwt token or boolean. For example:</p>
+<dl class="simple">
+<dt>If the user is found in the database:</dt><dd><p>jwt token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjBmYmIwNmQzLThlMjEtNDdmOC1hYjhiLWZiYjFkZWMxOGI0NCJ9.56AYBki0mTphIyHpYnQqh1Agc-070KynBIl9Zlsiy5M</p>
+</dd>
+<dt>else:</dt><dd><p>False</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>Returned response is a boolean value or generate jwt token
+as a response to the login function.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.get_user_id">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">get_user_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#get_user_id"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.get_user_id" title="Link to this definition"></a></dt>
+<dd><p>Finds user_id in the database according to user id from the token in the sent parameter.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>id:</dt><dd><p>User id from the bearer token.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>Value of the user_id as a result variable or value None. For example:</p>
+<blockquote>
+<div><p>If the user_id is not found in the database, then return None.</p>
+<p>If the user_id is found in the database, then return its value.</p>
+</div></blockquote>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.login">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#login"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.login" title="Link to this definition"></a></dt>
+<dd><p>Logins user into the system and generates jwt bearer token for authorization.</p>
+<p>Retrieves user’s input data as username and password to login into system.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content or jwt token with status code 200 OK. For example:</p>
+<blockquote>
+<div><blockquote>
+<div><blockquote>
+<div><dl>
+<dt>If the user is login successfully:</dt><dd><p>INFO:     127.0.0.1:56045 - “POST /api/login/ HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><blockquote>
+<div><p>“jwt_token”: “eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjBmYmIwNmQzLThlMjEtNDdmOC1hYjhiLWZiYjFkZWMxOGI0NCJ9.56AYBki0mTphIyHpYnQqh1Agc-070KynBIl9Zlsiy5M”</p>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+<dl>
+<dt>If the user is not login successfully:</dt><dd><p>INFO:     127.0.0.1:56097 - “POST /api/login/ HTTP/1.1” 401 Unauthorized
+{</p>
+<blockquote>
+<div><p>“detail”: “Unauthorized”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the one of the inputs (username, password) is misssing:</dt><dd><p>INFO:     127.0.0.1:57299 - “POST /api/login/ HTTP/1.1” 400 Bad Request
+{</p>
+<blockquote>
+<div><p>“detail”: “Bad request”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</div></blockquote>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.signup">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">signup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/auth/authentication.html#signup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.signup" title="Link to this definition"></a></dt>
+<dd><p>Registers user and handles his data.</p>
+<p>Retrieves user’s input data as username, email, password and confirmation password,
+then validate them and put into database.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is created successfully:</dt><dd><p>INFO:     127.0.0.1:61359 - “POST /api/signup/ HTTP/1.1” 201 Created
+{</p>
+<blockquote>
+<div><p>“detail”: “Created: User created successfully”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the user is trying to register with the already existing email in the database:</dt><dd><p>INFO:     127.0.0.1:61957 - “POST /api/signup/ HTTP/1.1” 400 Bad Request
+{</p>
+<blockquote>
+<div><p>“detail”: “Bad request: Email already exists.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the user wrote invalid input:</dt><dd><p>INFO:     127.0.0.1:62019 - “POST /api/signup/ HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Forbidden: Access forbidden.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the user wrote invalid input, the field is missing:</dt><dd><p>INFO:     127.0.0.1:62059 - “POST /api/signup/ HTTP/1.1” 400 Bad Request
+{</p>
+<blockquote>
+<div><p>“detail”: “Bad request: All fields are required.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred in the SQL query or database connection.</dt><dd><p>psycopg2.Error instance with status code 500.</p>
+</dd>
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.auth.authentication.token_access">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.auth.authentication.</span></span><span class="sig-name descname"><span class="pre">token_access</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/auth/authentication.html#token_access"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.auth.authentication.token_access" title="Link to this definition"></a></dt>
+<dd><p>Check if the user is authorized.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>Value of the user_id or value None. For example:</p>
+<blockquote>
+<div><p>If the user_id is not found in the token, then return None.</p>
+<p>If the user_id is found in the token, then return its value.</p>
+</div></blockquote>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: Token expired or is no longer available.</dt><dd><p>jwt.ExpiredSignatureError instance with status code 401.</p>
+</dd>
+<dt>HTTPException: Forbidden: Invalid token.</dt><dd><p>jwt.InvalidTokenError instance with status code 403.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-app.auth">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-app.auth" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="app.html" class="btn btn-neutral float-left" title="app package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="app.config.html" class="btn btn-neutral float-right" title="app.config package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, xremenarp_xmatusiskova.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

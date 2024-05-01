@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.endpoints package &mdash; mtaa 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=8d563738"></script>
+        <script src="_static/doctools.js?v=9a2dae69"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="app.config package" href="app.config.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            mtaa
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">app</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="app.html">app package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="app.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="app.auth.html">app.auth package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="app.config.html">app.config package</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">app.endpoints package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="app.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.html#module-app.router">app.router module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="app.html#module-app">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">mtaa</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">app</a></li>
+          <li class="breadcrumb-item"><a href="app.html">app package</a></li>
+      <li class="breadcrumb-item active">app.endpoints package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/app.endpoints.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="app-endpoints-package">
+<h1>app.endpoints package<a class="headerlink" href="#app-endpoints-package" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+</section>
+<section id="module-app.endpoints.client">
+<span id="app-endpoints-client-module"></span><h2>app.endpoints.client module<a class="headerlink" href="#module-app.endpoints.client" title="Link to this heading"></a></h2>
+<p>Defines authorization functions and endpoints for API requests and related attributes.</p>
+<p>This is a part where user in BE needs to be authorized after authentication.
+The user has access to the content of the app as searching activities for him
+or making notes and so on.
+Except of that, this module also checks accessibility of user by his automatically
+generated token.</p>
+<dl>
+<dt>A brief overview of exported classes and their usage:</dt><dd><dl>
+<dt>router = APIRouter()</dt><dd><dl class="simple">
+<dt>in any request, example:</dt><dd><p>&#64;router.get(“/status”)</p>
+</dd>
+</dl>
+</dd>
+<dt>security = HTTPBearer()</dt><dd><dl class="simple">
+<dt>in the authorization requests of user, example:</dt><dd><dl class="simple">
+<dt>async def activities(credentials: HTTPAuthorizationCredentials =</dt><dd><p>Depends(security)) -&gt; JSONResponse:</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+<dt>for handling database connection for client and server:</dt><dd><dl class="simple">
+<dt>pool_client = psycopg2.pool.SimpleConnectionPool(</dt><dd><p>minconn=1,
+maxconn=10,
+dbname=settings.DATABASE_NAME_CLIENT,
+host=settings.DATABASE_HOST,
+port=settings.DATABASE_PORT,
+user=settings.DATABASE_USER,
+password=settings.DATABASE_PASSWORD</p>
+</dd>
+</dl>
+<p>)</p>
+<dl class="simple">
+<dt>pool_server = psycopg2.pool.SimpleConnectionPool(</dt><dd><p>minconn=1,
+maxconn=10,
+dbname=settings.DATABASE_NAME_SERVER,
+host=settings.DATABASE_HOST,
+port=settings.DATABASE_PORT,
+user=settings.DATABASE_USER,
+password=settings.DATABASE_PASSWORD</p>
+</dd>
+</dl>
+<p>)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.activities">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">activities</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#activities"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.activities" title="Link to this definition"></a></dt>
+<dd><p>Gets one specific activity in the app from the database, according to user request.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:57973 - “GET /api/place HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><blockquote>
+<div><p>“detail”: “Internal server error: ‘NoneType’ object is not subscriptable”</p>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+</dd>
+<dt>If the database is empty then:</dt><dd><p>INFO:     127.0.0.1:57973 - “GET /api/place HTTP/1.1” 204 No Content
+{</p>
+<blockquote>
+<div><p>“detail”: “No records found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><p>INFO:     127.0.0.1:57973 - “GET /api/place HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><dl>
+<dt>“items”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: “2319d5ad-0346-48a9-993e-f1dd7ad233a5”,
+“name”: “BeAbout”,
+“image_name”: “img1”,
+“description”: “Najlepšia burgráreň.”,
+“contact”: “421912000001”,
+“address”: “Prešernova 4, 811 02 Bratislava”,
+“gps”: “48.1405355220085, 17.115227264931487”,
+“meals”: “TRUE”,
+“accomodation”: “FALSE”,
+“sport”: “FALSE”,
+“hiking”: “FALSE”,
+“fun”: “FALSE”,
+“events”: “FALSE”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+</dd>
+</dl>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.add_favourit">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">add_favourit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#add_favourit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.add_favourit" title="Link to this definition"></a></dt>
+<dd><p>Posts user’s favourite activity into favourites list.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:59752 - “POST /api/add_favourite HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Not authenticated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the place is already in favourites:</dt><dd><p>INFO:     127.0.0.1:60040 - “POST /api/add_favourite HTTP/1.1” 205 Reset Content
+{</p>
+<blockquote>
+<div><p>“detail”: “Place already in favourites”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><dl>
+<dt>INFO:      127.0.0.1:60040 - “POST /api/add_favourite HTTP/1.1” 200 OK</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“detail”: “OK: Place added to favourites.”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.add_note">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">add_note</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#add_note"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.add_note" title="Link to this definition"></a></dt>
+<dd><blockquote>
+<div><p>User can delete his note from the app.</p>
+</div></blockquote>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:60951 - “DELETE /api/delete_note HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Not authenticated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the note is already deleted:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:61026 - “DELETE /api/delete_note HTTP/1.1” 205 Reset Content</p>
+</div></blockquote>
+<dl class="simple">
+<dt>{</dt><dd><p>“detail”: “FAIL: Note does not exist.”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><p>INFO:     127.0.0.1:61008 - “DELETE /api/delete_note HTTP/1.1” 201 Created
+{</p>
+<blockquote>
+<div><p>“detail”: “OK: Note deleted.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.add_place">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">add_place</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#add_place"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.add_place" title="Link to this definition"></a></dt>
+<dd><p>User can place into the system.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><dl>
+<dt>INFO:     127.0.0.1:61393 - “POST /api/add_my_place HTTP/1.1” 403 Forbidden</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“detail”: “Not authenticated”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the request is successful:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:61430 - “POST /api/add_my_place HTTP/1.1” 201 Created</p>
+</div></blockquote>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><p>“detail”: “OK: Place created.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.category">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">category</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#category"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.category" title="Link to this definition"></a></dt>
+<dd><p>Gets activities in the app for user according to chosen category.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:59286 - “GET /api/place_category HTTP/1.1” 403 Forbidden</p>
+</div></blockquote>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><p>“detail”: “Internal server error: ‘NoneType’ object is not subscriptable”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the database is empty then:</dt><dd><p>INFO:     127.0.0.1:59286 - “GET /api/place_category HTTP/1.1” 204 No Content
+{</p>
+<blockquote>
+<div><p>“detail”: “No records found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+<p>If the request is successful, then the result will be
+according to chosen category, in this case meals:</p>
+<blockquote>
+<div><p>INFO:     127.0.0.1:59286 - “GET /api/place_category HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><dl>
+<dt>“items”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: “c584e467-1e9e-45d5-a617-4ae772a1407a”,
+“name”: “Sheraton”,
+“image_name”: “img4”,
+“description”: “Hotel s ideálnou polohou.”,
+“contact”: “421912000004”,
+“address”: “Pribinova 12, 811 09 Bratislava”,
+“gps”: “48.14061834357159, 17.12233203794686”,
+“meals”: “TRUE”,
+“accomodation”: “TRUE”,
+“sport”: “FALSE”,
+“hiking”: “FALSE”,
+“fun”: “FALSE”,
+“events”: “FALSE”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+</div></blockquote>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.delete_favourit">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">delete_favourit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#delete_favourit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.delete_favourit" title="Link to this definition"></a></dt>
+<dd><p>Deletes user’s favourite activity from the favourites list.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><dl>
+<dt>INFO:     127.0.0.1:60420 - “POST /api/delete_favourite HTTP/1.1” 403 Forbidden</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“detail”: “Not authenticated”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the place is not in favourites:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:60543 - “POST /api/delete_favourite HTTP/1.1” 205 Reset Content</p>
+</div></blockquote>
+<dl class="simple">
+<dt>{</dt><dd><p>“detail”: “Place not in favourites”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><dl>
+<dt>INFO:     127.0.0.1:60519 - “POST /api/delete_favourite HTTP/1.1” 201 Created</dt><dd><dl>
+<dt>{</dt><dd><blockquote>
+<div><p>“detail”: “OK: Place deleted from favourites.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.edit_place">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">edit_place</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#edit_place"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.edit_place" title="Link to this definition"></a></dt>
+<dd><p>User can delete his place from the system.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><dl>
+<dt>INFO:     127.0.0.1:61661 - “DELETE /api/delete_my_place HTTP/1.1” 403 Forbidden</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“detail”: “Not authenticated”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the request is successful:</dt><dd><p>INFO:     127.0.0.1:61689 - “DELETE /api/delete_my_place HTTP/1.1” 201 Created
+{</p>
+<blockquote>
+<div><p>“detail”: “OK: Place deleted.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the place is not found:</dt><dd><p>INFO:     127.0.0.1:61689 - “DELETE /api/delete_my_place HTTP/1.1” 205 Reset Content
+{</p>
+<blockquote>
+<div><p>“detail”: “OK: Place not found.”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.favourites">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">favourites</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#favourites"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.favourites" title="Link to this definition"></a></dt>
+<dd><p>Gets all user’s favourites activities in the app from the database.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:58071 - “GET /api/get_all_favourites HTTP/1.1” 403 Forbidden</p>
+</div></blockquote>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><p>“detail”: “Internal server error: ‘NoneType’ object is not subscriptable”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the database is empty then:</dt><dd><p>INFO:     127.0.0.1:58071 - “GET /api/get_all_favourites HTTP/1.1” 204 No Content
+{</p>
+<blockquote>
+<div><p>“detail”: “No records found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><p>INFO:     127.0.0.1:58071 - “GET /api/get_all_favourites HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><dl>
+<dt>“items”: [</dt><dd><dl>
+<dt>“items”: [</dt><dd><blockquote>
+<div><dl class="simple">
+<dt>{</dt><dd><p>“id”: “dad61774-5515-4d1e-8da6-a27fb5bc13f5”,
+“name”: “Petržalská hrádza”,
+“image”: “img5”,
+“description”: “Miesto v prírode ideálne na bicyklovanie.”,
+“contact”: “421912000005”,
+“address”: “34RM+99, 851 07 Bratislava”,
+“gps”: “48.091041411663475, 17.13336239814964”,
+“meals”: “FALSE”,
+“accomodation”: “FALSE”,
+“sport”: “TRUE”,
+“hiking”: “TRUE”,
+“fun”: “FALSE”,
+“events”: “FALSE”</p>
+</dd>
+</dl>
+<p>}</p>
+</div></blockquote>
+<p>]</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.get_created_places">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">get_created_places</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#get_created_places"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.get_created_places" title="Link to this definition"></a></dt>
+<dd><p>Gets chosen by user his place.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:62292 - “GET /api/get_my_place HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Not authenticated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:62314 - “GET /api/get_my_place HTTP/1.1” 201 Created</p>
+</div></blockquote>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><dl>
+<dt>“note”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: “3a360180-7205-40f3-a600-6eb69520a06c”,
+“name”: “Testovacie miesto”,
+“image_name”: “t1”,
+“description”: “Miesto na testovanie”,
+“contact”: “421912345678”,
+“address”: “Testovacia adresa”,
+“gps”: “48.1405355220086, 17.115227264931488”,
+“meals”: “TRUE”,
+“accomodation”: “TRUE”,
+“sport”: “TRUE”,
+“hiking”: “TRUE”,
+“fun”: “TRUE”,
+“events”: “TRUE”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the place is not found:</dt><dd><p>INFO:     127.0.0.1:62314 - “GET /api/get_my_place HTTP/1.1” 205 Reset Content
+{</p>
+<blockquote>
+<div><p>“detail”: “Place not found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.get_note">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">get_note</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#get_note"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.get_note" title="Link to this definition"></a></dt>
+<dd><p>Gets note from the system for user.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:61113 - “GET /api/get_note HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Not authenticated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the note is not found:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:61162 - “GET /api/get_note HTTP/1.1” 205 Reset Content</p>
+</div></blockquote>
+<dl class="simple">
+<dt>{</dt><dd><p>“detail”: “Place does not have notes”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><p>INFO:     127.0.0.1:61232 - “GET /api/get_note HTTP/1.1” 201 Created
+{</p>
+<blockquote>
+<div><dl>
+<dt>“note”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: “f6a3b853-2f8c-4011-bf8e-5103c20a3ddc”,
+“note”: “Dobre rezne maju”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.haversine">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">haversine</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">coord1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coord2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#haversine"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.haversine" title="Link to this definition"></a></dt>
+<dd><p>Calculates the great-circle distance between two points on the map.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>coord1:</dt><dd><p>A tuple containing latitude and longitude of the first point.</p>
+</dd>
+<dt>coord2:</dt><dd><p>A tuple containing latitude and longitude of the second point.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>The distance between the two points in kilometers in float type.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.location_activities">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">location_activities</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">request</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Request</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#location_activities"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.location_activities" title="Link to this definition"></a></dt>
+<dd><p>Gets activities in the app for user according to his gps location.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>request:</dt><dd><p>Body of the post request. Request instance of the FastAPI.</p>
+</dd>
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:58208 - “GET /api/location_places HTTP/1.1” 403 Forbidden</p>
+</div></blockquote>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><p>“detail”: “Internal server error: ‘NoneType’ object is not subscriptable”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the database is empty then:</dt><dd><p>INFO:     127.0.0.1:58208 - “GET /api/location_places HTTP/1.1” 204 No Content
+{</p>
+<blockquote>
+<div><p>“detail”: “No records found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+<p>If the request is successful, then the result will be
+according to user location:</p>
+<blockquote>
+<div><p>INFO:     127.0.0.1:58208 - “GET /api/location_places HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><dl>
+<dt>“items”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: “c584e467-1e9e-45d5-a617-4ae772a1407a”,
+“name”: “Sheraton”,
+“image_name”: “img4”,
+“description”: “Hotel s ideálnou polohou.”,
+“contact”: “421912000004”,
+“address”: “Pribinova 12, 811 09 Bratislava”,
+“gps”: “48.14061834357159, 17.12233203794686”,
+“meals”: “TRUE”,
+“accomodation”: “TRUE”,
+“sport”: “FALSE”,
+“hiking”: “FALSE”,
+“fun”: “FALSE”,
+“events”: “FALSE”</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+</div></blockquote>
+</div></blockquote>
+<p>}</p>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.serialize_datetime_and_decimal">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">serialize_datetime_and_decimal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/endpoints/client.html#serialize_datetime_and_decimal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.serialize_datetime_and_decimal" title="Link to this definition"></a></dt>
+<dd><p>Serializes datetime and decimal objects.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>obj:</dt><dd><p>The object to be serialized.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>String or float value of serialized object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.status">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.status" title="Link to this definition"></a></dt>
+<dd><p>Function status is only for testing purpose.</p>
+<dl>
+<dt>Returns:</dt><dd><p>A JSON object which defines a current version of postgreSQL:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is created successfully:</dt><dd><p>INFO:     127.0.0.1:56979 - “GET /status HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><p>“version”: “PostgreSQL 14.4 on x86_64-apple-darwin20.6.0,
+compiled by Apple clang version 12.0.0 (clang-1200.0.32.29), 64-bit”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+</dl>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.update_databse">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">update_databse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#update_databse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.update_databse" title="Link to this definition"></a></dt>
+<dd><p>Request to update database.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:62687 - “PUT /api/update_databse HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Not authenticated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><p>INFO:     127.0.0.1:62724 - “PUT /api/update_databse HTTP/1.1” 201 Created
+{</p>
+<blockquote>
+<div><p>“note”: “Records updated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the place is not found:</dt><dd><p>INFO:     127.0.0.1:62724 - “PUT /api/update_databse HTTP/1.1” 205 Reset Content
+{</p>
+<blockquote>
+<div><p>“detail”: “Records not found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.upload_image">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">upload_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/endpoints/client.html#upload_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.upload_image" title="Link to this definition"></a></dt>
+<dd><p>Uploads image.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>file_path:</dt><dd><p>Path to source of image.</p>
+</dd>
+<dt>name:</dt><dd><p>Name of the image.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.client.zip_objects_from_db">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.client.</span></span><span class="sig-name descname"><span class="pre">zip_objects_from_db</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="reference internal" href="_modules/app/endpoints/client.html#zip_objects_from_db"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.client.zip_objects_from_db" title="Link to this definition"></a></dt>
+<dd><p>Zips objects retrieved from the database with cursor metadata.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>data:</dt><dd><p>Data to in the list of tuples (colum - value) from database</p>
+</dd>
+<dt>cursor:</dt><dd><p>The cursor object containing metadata about the retrieved data.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A list of dictionaries, where each dictionary has a row of data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-app.endpoints.server">
+<span id="app-endpoints-server-module"></span><h2>app.endpoints.server module<a class="headerlink" href="#module-app.endpoints.server" title="Link to this heading"></a></h2>
+<p>Defines authorization functions and endpoints for API requests and related attributes.</p>
+<p>It is similar to client file, but these endpoints are meant for server database.</p>
+<dl>
+<dt>A brief overview of exported classes and their usage:</dt><dd><dl class="simple">
+<dt>router = APIRouter()</dt><dd><dl class="simple">
+<dt>in any request, example:</dt><dd><p>&#64;router.get(“/status”)</p>
+</dd>
+</dl>
+</dd>
+<dt>security = HTTPBearer()</dt><dd><dl class="simple">
+<dt>in the authorization requests of user, example:</dt><dd><dl class="simple">
+<dt>async def activities(credentials: HTTPAuthorizationCredentials =</dt><dd><p>Depends(security)) -&gt; JSONResponse:</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+<p>for handling database connection of server:</p>
+<blockquote>
+<div><dl class="simple">
+<dt>pool_server = psycopg2.pool.SimpleConnectionPool(</dt><dd><p>minconn=1,
+maxconn=10,
+dbname=settings.DATABASE_NAME_SERVER,
+host=settings.DATABASE_HOST,
+port=settings.DATABASE_PORT,
+user=settings.DATABASE_USER,
+password=settings.DATABASE_PASSWORD</p>
+</dd>
+</dl>
+<p>)</p>
+</div></blockquote>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.server.activities">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.server.</span></span><span class="sig-name descname"><span class="pre">activities</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">credentials</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">HTTPAuthorizationCredentials</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Depends(HTTPBearer)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">JSONResponse</span></span></span><a class="reference internal" href="_modules/app/endpoints/server.html#activities"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.server.activities" title="Link to this definition"></a></dt>
+<dd><p>Gets chosen by user his place.</p>
+<dl>
+<dt>Args:</dt><dd><dl class="simple">
+<dt>credentials:</dt><dd><p>Bearer token to authorize. HTTPAuthorizationCredentials instance
+with security instance of HTTPBearer.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A JSONResponse of the HTTP/HTTPS status code of the request with
+description content. For example:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is not authorized:</dt><dd><p>INFO:     127.0.0.1:63240 - “GET /server/get_all_places HTTP/1.1” 403 Forbidden
+{</p>
+<blockquote>
+<div><p>“detail”: “Not authenticated”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+<dt>If the request is successful:</dt><dd><blockquote>
+<div><p>INFO:     127.0.0.1:63275 - “GET /server/get_all_places HTTP/1.1” 200 OK</p>
+</div></blockquote>
+<dl>
+<dt>{</dt><dd><blockquote>
+<div><dl>
+<dt>“items”: [</dt><dd><dl class="simple">
+<dt>{</dt><dd><p>“id”: “dad61774-5515-4d1e-8da6-a27fb5bc13f5”,
+“name”: “Petržalská hrádza”,
+“image_name”: “img5”,
+“description”: “Miesto v prírode ideálne na bicyklovanie.”,
+“contact”: “421912000005”,
+“address”: “34RM+99, 851 07 Bratislava”,
+“gps”: “48.091041411663475, 17.13336239814964”,
+“meals”: “FALSE”,
+“accomodation”: “FALSE”,
+“sport”: “TRUE”,
+“hiking”: “TRUE”,
+“fun”: “FALSE”,
+“events”: “FALSE”,
+“image_data”: null</p>
+</dd>
+</dl>
+<p>}</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</dd>
+<dt>If the database is empty then:</dt><dd><p>INFO:     127.0.0.1:63275 - “GET /server/get_all_places HTTP/1.1” 204 No Content
+{</p>
+<blockquote>
+<div><p>“detail”: “No records found”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>HTTPException: An error occurred, Internal server error. Its is</dt><dd><p>a general exception. Exception instance with status code 500.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.server.serialize_datetime_and_decimal">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.server.</span></span><span class="sig-name descname"><span class="pre">serialize_datetime_and_decimal</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/endpoints/server.html#serialize_datetime_and_decimal"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.server.serialize_datetime_and_decimal" title="Link to this definition"></a></dt>
+<dd><p>Serializes datetime and decimal objects.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>obj:</dt><dd><p>The object to be serialized.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>String or float value of serialized object.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.server.status">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">app.endpoints.server.</span></span><span class="sig-name descname"><span class="pre">status</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="reference internal" href="_modules/app/endpoints/server.html#status"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.server.status" title="Link to this definition"></a></dt>
+<dd><p>Function status is only for testing purpose.</p>
+<dl>
+<dt>Returns:</dt><dd><p>A JSON object which defines a current version of postgreSQL:</p>
+<blockquote>
+<div><dl>
+<dt>If the user is created successfully:</dt><dd><p>INFO:     127.0.0.1:56979 - “GET /status HTTP/1.1” 200 OK
+{</p>
+<blockquote>
+<div><p>“version”: “PostgreSQL 14.4 on x86_64-apple-darwin20.6.0,
+compiled by Apple clang version 12.0.0 (clang-1200.0.32.29), 64-bit”</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+</dl>
+<p>Returned response is always JSON object with HTTP/HTTPS status code.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.server.upload_image">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.server.</span></span><span class="sig-name descname"><span class="pre">upload_image</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/endpoints/server.html#upload_image"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.server.upload_image" title="Link to this definition"></a></dt>
+<dd><p>Uploads image.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>file_path:</dt><dd><p>Path to source of image.</p>
+</dd>
+<dt>name:</dt><dd><p>Name of the image.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="app.endpoints.server.zip_objects_from_db">
+<span class="sig-prename descclassname"><span class="pre">app.endpoints.server.</span></span><span class="sig-name descname"><span class="pre">zip_objects_from_db</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cursor</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/app/endpoints/server.html#zip_objects_from_db"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#app.endpoints.server.zip_objects_from_db" title="Link to this definition"></a></dt>
+<dd><p>Zips objects retrieved from the database with cursor metadata.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>data:</dt><dd><p>Data to in the list of tuples (colum - value) from database</p>
+</dd>
+<dt>cursor:</dt><dd><p>The cursor object containing metadata about the retrieved data.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>A list of dictionaries, where each dictionary has a row of data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-app.endpoints">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-app.endpoints" title="Link to this heading"></a></h2>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="app.config.html" class="btn btn-neutral float-left" title="app.config package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, xremenarp_xmatusiskova.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,3 +1,7 @@
+"""
+Main module for the MTAA application.
+"""
+
 from fastapi import FastAPI
 from app.router import router
 

@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>app.endpoints.client &#8212; mtaa 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=12dfc556" />
+    <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for app.endpoints.client</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Defines authorization functions and endpoints for API requests and related attributes.</span>
+
+<span class="sd">This is a part where user in BE needs to be authorized after authentication.</span>
+<span class="sd">The user has access to the content of the app as searching activities for him</span>
+<span class="sd">or making notes and so on.</span>
+<span class="sd">Except of that, this module also checks accessibility of user by his automatically</span>
+<span class="sd">generated token.</span>
+
+<span class="sd">A brief overview of exported classes and their usage:</span>
+<span class="sd">    router = APIRouter()</span>
+<span class="sd">        in any request, example:</span>
+<span class="sd">            @router.get(&quot;/status&quot;)</span>
+
+<span class="sd">    security = HTTPBearer()</span>
+<span class="sd">        in the authorization requests of user, example:</span>
+<span class="sd">            async def activities(credentials: HTTPAuthorizationCredentials =</span>
+<span class="sd">                Depends(security)) -&gt; JSONResponse:</span>
+
+<span class="sd">    for handling database connection for client and server:</span>
+<span class="sd">        pool_client = psycopg2.pool.SimpleConnectionPool(</span>
+<span class="sd">            minconn=1,</span>
+<span class="sd">            maxconn=10,</span>
+<span class="sd">            dbname=settings.DATABASE_NAME_CLIENT,</span>
+<span class="sd">            host=settings.DATABASE_HOST,</span>
+<span class="sd">            port=settings.DATABASE_PORT,</span>
+<span class="sd">            user=settings.DATABASE_USER,</span>
+<span class="sd">            password=settings.DATABASE_PASSWORD</span>
+<span class="sd">        )</span>
+
+<span class="sd">        pool_server = psycopg2.pool.SimpleConnectionPool(</span>
+<span class="sd">            minconn=1,</span>
+<span class="sd">            maxconn=10,</span>
+<span class="sd">            dbname=settings.DATABASE_NAME_SERVER,</span>
+<span class="sd">            host=settings.DATABASE_HOST,</span>
+<span class="sd">            port=settings.DATABASE_PORT,</span>
+<span class="sd">            user=settings.DATABASE_USER,</span>
+<span class="sd">            password=settings.DATABASE_PASSWORD</span>
+<span class="sd">        )</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">decimal</span>
+<span class="kn">from</span> <span class="nn">math</span> <span class="kn">import</span> <span class="n">radians</span><span class="p">,</span> <span class="n">sin</span><span class="p">,</span> <span class="n">cos</span><span class="p">,</span> <span class="n">sqrt</span><span class="p">,</span> <span class="n">atan2</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">jwt</span>
+<span class="kn">from</span> <span class="nn">OpenSSL</span> <span class="kn">import</span> <span class="n">crypto</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
+<span class="kn">import</span> <span class="nn">psycopg2.pool</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">Request</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">Depends</span>
+<span class="kn">from</span> <span class="nn">fastapi.security</span> <span class="kn">import</span> <span class="n">OAuth2PasswordBearer</span><span class="p">,</span> <span class="n">HTTPAuthorizationCredentials</span><span class="p">,</span> <span class="n">HTTPBearer</span>
+<span class="kn">from</span> <span class="nn">starlette.responses</span> <span class="kn">import</span> <span class="n">JSONResponse</span>
+<span class="kn">from</span> <span class="nn">app.auth.Tokenization</span> <span class="kn">import</span> <span class="n">Tokenization</span>
+<span class="kn">from</span> <span class="nn">app.auth.authentication</span> <span class="kn">import</span> <span class="n">token_access</span>
+<span class="kn">from</span> <span class="nn">app.config.config</span> <span class="kn">import</span> <span class="n">settings</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+<span class="n">oauth2_scheme</span> <span class="o">=</span> <span class="n">OAuth2PasswordBearer</span><span class="p">(</span><span class="n">tokenUrl</span><span class="o">=</span><span class="s2">&quot;/api/auth&quot;</span><span class="p">)</span>
+<span class="n">security</span> <span class="o">=</span> <span class="n">HTTPBearer</span><span class="p">()</span>
+
+<span class="n">pool_client</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">SimpleConnectionPool</span><span class="p">(</span>
+    <span class="n">minconn</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">maxconn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">dbname</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_NAME_CLIENT</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_HOST</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_PORT</span><span class="p">,</span>
+    <span class="n">user</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_USER</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_PASSWORD</span>
+<span class="p">)</span>
+<span class="n">pool_server</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">SimpleConnectionPool</span><span class="p">(</span>
+    <span class="n">minconn</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">maxconn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">dbname</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_NAME_SERVER</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_HOST</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_PORT</span><span class="p">,</span>
+    <span class="n">user</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_USER</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_PASSWORD</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="haversine">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.haversine">[docs]</a>
+<span class="k">def</span> <span class="nf">haversine</span><span class="p">(</span><span class="n">coord1</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">,</span> <span class="n">coord2</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculates the great-circle distance between two points on the map.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      coord1:</span>
+<span class="sd">          A tuple containing latitude and longitude of the first point.</span>
+<span class="sd">      coord2:</span>
+<span class="sd">          A tuple containing latitude and longitude of the second point.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        The distance between the two points in kilometers in float type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lat1</span><span class="p">,</span> <span class="n">lon1</span> <span class="o">=</span> <span class="n">radians</span><span class="p">(</span><span class="n">coord1</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">radians</span><span class="p">(</span><span class="n">coord1</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">lat2</span><span class="p">,</span> <span class="n">lon2</span> <span class="o">=</span> <span class="n">radians</span><span class="p">(</span><span class="n">coord2</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">radians</span><span class="p">(</span><span class="n">coord2</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="mf">6371.0</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">atan2</span><span class="p">(</span><span class="n">sqrt</span><span class="p">((</span><span class="n">sin</span><span class="p">((</span><span class="n">lat2</span> <span class="o">-</span> <span class="n">lat1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="n">lat1</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">lat2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sin</span><span class="p">((</span><span class="n">lon2</span> <span class="o">-</span> <span class="n">lon1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)),</span> <span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">sin</span><span class="p">((</span><span class="n">lat2</span> <span class="o">-</span> <span class="n">lat1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="n">lat1</span><span class="p">)</span> <span class="o">*</span> <span class="n">cos</span><span class="p">(</span><span class="n">lat2</span><span class="p">)</span> <span class="o">*</span> <span class="n">sin</span><span class="p">((</span><span class="n">lon2</span> <span class="o">-</span> <span class="n">lon1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">))))</span></div>
+
+
+
+<div class="viewcode-block" id="serialize_datetime_and_decimal">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.serialize_datetime_and_decimal">[docs]</a>
+<span class="k">def</span> <span class="nf">serialize_datetime_and_decimal</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Serializes datetime and decimal objects.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      obj:</span>
+<span class="sd">          The object to be serialized.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        String or float value of serialized object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">datetime</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">astimezone</span><span class="p">(</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(</span><span class="n">timespec</span><span class="o">=</span><span class="s1">&#39;milliseconds&#39;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">decimal</span><span class="o">.</span><span class="n">Decimal</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">obj</span></div>
+
+
+
+<div class="viewcode-block" id="zip_objects_from_db">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.zip_objects_from_db">[docs]</a>
+<span class="k">def</span> <span class="nf">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Zips objects retrieved from the database with cursor metadata.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      data:</span>
+<span class="sd">        Data to in the list of tuples (colum - value) from database</span>
+<span class="sd">      cursor:</span>
+<span class="sd">        The cursor object containing metadata about the retrieved data.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A list of dictionaries, where each dictionary has a row of data.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">((</span><span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">cursor</span><span class="o">.</span><span class="n">description</span><span class="p">),</span>
+                     <span class="p">[</span><span class="n">serialize_datetime_and_decimal</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">row</span><span class="p">]))</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="status">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.status">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/status&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">status</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function status is only for testing purpose.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A JSON object which defines a current version of postgreSQL:</span>
+
+<span class="sd">            If the user is created successfully:</span>
+<span class="sd">                INFO:     127.0.0.1:56979 - &quot;GET /status HTTP/1.1&quot; 200 OK</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;version&quot;: &quot;PostgreSQL 14.4 on x86_64-apple-darwin20.6.0,</span>
+<span class="sd">                    compiled by Apple clang version 12.0.0 (clang-1200.0.32.29), 64-bit&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">    Returned response is always JSON object with HTTP/HTTPS status code.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+    <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT version();&quot;</span><span class="p">)</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s1">&#39;version&#39;</span><span class="p">:</span> <span class="n">version</span>
+    <span class="p">}</span></div>
+
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/get_all_places&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">activities</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets all activities in the app from the databse.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       credentials:</span>
+<span class="sd">        Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">        with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">       description content. For example:</span>
+
+<span class="sd">           If the user is not authorized:</span>
+<span class="sd">                INFO:     127.0.0.1:57594 - &quot;GET /api/get_all_places HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;Internal server error: &#39;NoneType&#39; object is not subscriptable&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">           If the database is empty then:</span>
+<span class="sd">               INFO:     127.0.0.1:57594 - &quot;GET /api/get_all_places HTTP/1.1&quot; 204 No Content</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;No records found&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">           If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:57594 - &quot;GET /api/get_all_places HTTP/1.1&quot; 200 OK</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;items&quot;: [</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: &quot;dad61774-5515-4d1e-8da6-a27fb5bc13f5&quot;,</span>
+<span class="sd">                        &quot;name&quot;: &quot;Petržalská hrádza&quot;,</span>
+<span class="sd">                        &quot;image_name&quot;: &quot;img5&quot;,</span>
+<span class="sd">                        &quot;description&quot;: &quot;Miesto v prírode ideálne na bicyklovanie.&quot;,</span>
+<span class="sd">                        &quot;contact&quot;: &quot;421912000005&quot;,</span>
+<span class="sd">                        &quot;address&quot;: &quot;34RM+99, 851 07 Bratislava&quot;,</span>
+<span class="sd">                        &quot;gps&quot;: &quot;48.091041411663475, 17.13336239814964&quot;,</span>
+<span class="sd">                        &quot;meals&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;accomodation&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;sport&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;hiking&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;fun&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;events&quot;: &quot;FALSE&quot;</span>
+<span class="sd">                    }</span>
+<span class="sd">            }</span>
+
+<span class="sd">       Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM places&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;No records found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="activities">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.activities">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/place&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">activities</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets one specific activity in the app from the database, according to user request.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">             INFO:     127.0.0.1:57973 - &quot;GET /api/place HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;Internal server error: &#39;NoneType&#39; object is not subscriptable&quot;</span>
+<span class="sd">              }</span>
+
+<span class="sd">         If the database is empty then:</span>
+<span class="sd">             INFO:     127.0.0.1:57973 - &quot;GET /api/place HTTP/1.1&quot; 204 No Content</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;No records found&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">          INFO:     127.0.0.1:57973 - &quot;GET /api/place HTTP/1.1&quot; 200 OK</span>
+<span class="sd">          {</span>
+<span class="sd">            &quot;items&quot;: [</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;id&quot;: &quot;2319d5ad-0346-48a9-993e-f1dd7ad233a5&quot;,</span>
+<span class="sd">                    &quot;name&quot;: &quot;BeAbout&quot;,</span>
+<span class="sd">                    &quot;image_name&quot;: &quot;img1&quot;,</span>
+<span class="sd">                    &quot;description&quot;: &quot;Najlepšia burgráreň.&quot;,</span>
+<span class="sd">                    &quot;contact&quot;: &quot;421912000001&quot;,</span>
+<span class="sd">                    &quot;address&quot;: &quot;Prešernova 4, 811 02 Bratislava&quot;,</span>
+<span class="sd">                    &quot;gps&quot;: &quot;48.1405355220085, 17.115227264931487&quot;,</span>
+<span class="sd">                    &quot;meals&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                    &quot;accomodation&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                    &quot;sport&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                    &quot;hiking&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                    &quot;fun&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                    &quot;events&quot;: &quot;FALSE&quot;</span>
+<span class="sd">                }</span>
+<span class="sd">            ]</span>
+<span class="sd">        }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM places</span>
+<span class="s2">                    where id= </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="nb">id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;No records found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="favourites">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.favourites">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/get_all_favourites&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">favourites</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets all user&#39;s favourites activities in the app from the database.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">              INFO:     127.0.0.1:58071 - &quot;GET /api/get_all_favourites HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;Internal server error: &#39;NoneType&#39; object is not subscriptable&quot;</span>
+<span class="sd">              }</span>
+
+<span class="sd">         If the database is empty then:</span>
+<span class="sd">             INFO:     127.0.0.1:58071 - &quot;GET /api/get_all_favourites HTTP/1.1&quot; 204 No Content</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;No records found&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">          INFO:     127.0.0.1:58071 - &quot;GET /api/get_all_favourites HTTP/1.1&quot; 200 OK</span>
+<span class="sd">          {</span>
+<span class="sd">            &quot;items&quot;: [</span>
+<span class="sd">                 &quot;items&quot;: [</span>
+<span class="sd">                        {</span>
+<span class="sd">                            &quot;id&quot;: &quot;dad61774-5515-4d1e-8da6-a27fb5bc13f5&quot;,</span>
+<span class="sd">                            &quot;name&quot;: &quot;Petržalská hrádza&quot;,</span>
+<span class="sd">                            &quot;image&quot;: &quot;img5&quot;,</span>
+<span class="sd">                            &quot;description&quot;: &quot;Miesto v prírode ideálne na bicyklovanie.&quot;,</span>
+<span class="sd">                            &quot;contact&quot;: &quot;421912000005&quot;,</span>
+<span class="sd">                            &quot;address&quot;: &quot;34RM+99, 851 07 Bratislava&quot;,</span>
+<span class="sd">                            &quot;gps&quot;: &quot;48.091041411663475, 17.13336239814964&quot;,</span>
+<span class="sd">                            &quot;meals&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                            &quot;accomodation&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                            &quot;sport&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                            &quot;hiking&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                            &quot;fun&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                            &quot;events&quot;: &quot;FALSE&quot;</span>
+<span class="sd">                        }</span>
+<span class="sd">                    ]</span>
+<span class="sd">          }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM favourites&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;No records found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="location_activities">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.location_activities">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/location_places&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">location_activities</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets activities in the app for user according to his gps location.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">              INFO:     127.0.0.1:58208 - &quot;GET /api/location_places HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;Internal server error: &#39;NoneType&#39; object is not subscriptable&quot;</span>
+<span class="sd">              }</span>
+
+<span class="sd">         If the database is empty then:</span>
+<span class="sd">             INFO:     127.0.0.1:58208 - &quot;GET /api/location_places HTTP/1.1&quot; 204 No Content</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;No records found&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful, then the result will be</span>
+<span class="sd">         according to user location:</span>
+<span class="sd">          INFO:     127.0.0.1:58208 - &quot;GET /api/location_places HTTP/1.1&quot; 200 OK</span>
+<span class="sd">          {</span>
+<span class="sd">            &quot;items&quot;: [</span>
+<span class="sd">                  {</span>
+<span class="sd">                        &quot;id&quot;: &quot;c584e467-1e9e-45d5-a617-4ae772a1407a&quot;,</span>
+<span class="sd">                        &quot;name&quot;: &quot;Sheraton&quot;,</span>
+<span class="sd">                        &quot;image_name&quot;: &quot;img4&quot;,</span>
+<span class="sd">                        &quot;description&quot;: &quot;Hotel s ideálnou polohou.&quot;,</span>
+<span class="sd">                        &quot;contact&quot;: &quot;421912000004&quot;,</span>
+<span class="sd">                        &quot;address&quot;: &quot;Pribinova 12, 811 09 Bratislava&quot;,</span>
+<span class="sd">                        &quot;gps&quot;: &quot;48.14061834357159, 17.12233203794686&quot;,</span>
+<span class="sd">                        &quot;meals&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;accomodation&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;sport&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;hiking&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;fun&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;events&quot;: &quot;FALSE&quot;</span>
+<span class="sd">                  }</span>
+<span class="sd">            ]</span>
+<span class="sd">        }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">gps</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gps&quot;</span><span class="p">)</span>
+        <span class="n">gps</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">gps</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM places&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">new_data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">coord</span> <span class="o">=</span> <span class="n">i</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="p">)</span>
+            <span class="n">coord_user</span> <span class="o">=</span> <span class="n">gps</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">haversine</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">coord_user</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">coord_user</span><span class="p">[</span><span class="mi">1</span><span class="p">])),</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">coord</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">coord</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="p">:</span><span class="c1">#############radius in km</span>
+                <span class="n">new_data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">new_data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;No records found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="category">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.category">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/place_category&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">category</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets activities in the app for user according to chosen category.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">              INFO:     127.0.0.1:59286 - &quot;GET /api/place_category HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;Internal server error: &#39;NoneType&#39; object is not subscriptable&quot;</span>
+<span class="sd">              }</span>
+
+<span class="sd">         If the database is empty then:</span>
+<span class="sd">             INFO:     127.0.0.1:59286 - &quot;GET /api/place_category HTTP/1.1&quot; 204 No Content</span>
+<span class="sd">             {</span>
+<span class="sd">                  &quot;detail&quot;: &quot;No records found&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful, then the result will be</span>
+<span class="sd">         according to chosen category, in this case meals:</span>
+<span class="sd">          INFO:     127.0.0.1:59286 - &quot;GET /api/place_category HTTP/1.1&quot; 200 OK</span>
+<span class="sd">          {</span>
+<span class="sd">            &quot;items&quot;: [</span>
+<span class="sd">                  {</span>
+<span class="sd">                        &quot;id&quot;: &quot;c584e467-1e9e-45d5-a617-4ae772a1407a&quot;,</span>
+<span class="sd">                        &quot;name&quot;: &quot;Sheraton&quot;,</span>
+<span class="sd">                        &quot;image_name&quot;: &quot;img4&quot;,</span>
+<span class="sd">                        &quot;description&quot;: &quot;Hotel s ideálnou polohou.&quot;,</span>
+<span class="sd">                        &quot;contact&quot;: &quot;421912000004&quot;,</span>
+<span class="sd">                        &quot;address&quot;: &quot;Pribinova 12, 811 09 Bratislava&quot;,</span>
+<span class="sd">                        &quot;gps&quot;: &quot;48.14061834357159, 17.12233203794686&quot;,</span>
+<span class="sd">                        &quot;meals&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;accomodation&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;sport&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;hiking&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;fun&quot;: &quot;FALSE&quot;,</span>
+<span class="sd">                        &quot;events&quot;: &quot;FALSE&quot;</span>
+<span class="sd">                  }</span>
+<span class="sd">            ]</span>
+<span class="sd">        }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">category</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;meals&quot;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE meals=&#39;TRUE&#39; &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;accomodation&quot;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE accomodation=&#39;TRUE&#39; &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;sport&quot;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE sport=&#39;TRUE&#39; &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;hiking&quot;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE hiking=&#39;TRUE&#39; &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;fun&quot;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE fun=&#39;TRUE&#39; &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">category</span> <span class="o">==</span> <span class="s2">&quot;events&quot;</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE events=&#39;TRUE&#39; &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Category does not exist&quot;</span><span class="p">})</span>
+
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">category</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">204</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;No records found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_favourit">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.add_favourit">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/add_favourite&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">add_favourit</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Posts user&#39;s favourite activity into favourites list.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">             INFO:     127.0.0.1:59752 - &quot;POST /api/add_favourite HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the place is already in favourites:</span>
+<span class="sd">             INFO:     127.0.0.1:60040 - &quot;POST /api/add_favourite HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Place already in favourites&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">          INFO:      127.0.0.1:60040 - &quot;POST /api/add_favourite HTTP/1.1&quot; 200 OK</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place added to favourites.&quot;</span>
+<span class="sd">           }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">activity_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;activity_id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM favourites</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                        FROM places</span>
+<span class="s2">                        WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+            <span class="n">place_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO favourites (id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)</span>
+<span class="s2">                        VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">place_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span><span class="p">))</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place added to favourites.&quot;</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Place already in favourites&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="delete_favourit">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.delete_favourit">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/delete_favourite&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">delete_favourit</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Deletes user&#39;s favourite activity from the favourites list.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">            INFO:     127.0.0.1:60420 - &quot;POST /api/delete_favourite HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the place is not in favourites:</span>
+<span class="sd">             INFO:     127.0.0.1:60543 - &quot;POST /api/delete_favourite HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Place not in favourites&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">          INFO:     127.0.0.1:60519 - &quot;POST /api/delete_favourite HTTP/1.1&quot; 201 Created</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place deleted from favourites.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">activity_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;activity_id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM favourites</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM favourites</span>
+<span class="s2">                        WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place deleted from favourites.&quot;</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Place not in favourites&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/api/add_edit_note&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">add_note</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    User can put his note into the app.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">            INFO:     127.0.0.1:60645 - &quot;PUT /api/add_edit_note HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:60672 - &quot;PUT /api/add_edit_note HTTP/1.1&quot; 201 Created</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Note added to place.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">activity_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;activity_id&quot;</span><span class="p">)</span>
+        <span class="n">note</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;note&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO notes</span>
+<span class="s2">                    VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)</span>
+<span class="s2">                    ON CONFLICT(id)</span>
+<span class="s2">                    DO UPDATE</span>
+<span class="s2">                    SET note = </span><span class="si">%s</span>
+<span class="s2">                    WHERE notes.id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">activity_id</span><span class="p">,</span> <span class="n">note</span><span class="p">,</span> <span class="n">note</span><span class="p">,</span> <span class="n">activity_id</span><span class="p">))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Note added to place.&quot;</span><span class="p">})</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="add_note">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.add_note">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/api/delete_note&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">add_note</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">     User can delete his note from the app.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">             INFO:     127.0.0.1:60951 - &quot;DELETE /api/delete_note HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the note is already deleted:</span>
+<span class="sd">             INFO:     127.0.0.1:61026 - &quot;DELETE /api/delete_note HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;FAIL: Note does not exist.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:61008 - &quot;DELETE /api/delete_note HTTP/1.1&quot; 201 Created</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Note deleted.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">activity_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;activity_id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT *</span>
+<span class="s2">                    FROM notes</span>
+<span class="s2">                    WHERE id=</span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM notes</span>
+<span class="s2">                        WHERE id= </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Note deleted.&quot;</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;FAIL: Note does not exist.&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_note">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.get_note">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/get_note&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_note</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets note from the system for user.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">             INFO:     127.0.0.1:61113 - &quot;GET /api/get_note HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the note is not found:</span>
+<span class="sd">             INFO:     127.0.0.1:61162 - &quot;GET /api/get_note HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Place does not have notes&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:61232 - &quot;GET /api/get_note HTTP/1.1&quot; 201 Created</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;note&quot;: [</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: &quot;f6a3b853-2f8c-4011-bf8e-5103c20a3ddc&quot;,</span>
+<span class="sd">                        &quot;note&quot;: &quot;Dobre rezne maju&quot;</span>
+<span class="sd">                    }</span>
+<span class="sd">                ]</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">activity_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;activity_id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT *</span>
+<span class="s2">                    FROM notes</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">activity_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Place does not have notes&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_place">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.add_place">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/add_my_place&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">add_place</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    User can place into the system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">            INFO:     127.0.0.1:61393 - &quot;POST /api/add_my_place HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:61430 - &quot;POST /api/add_my_place HTTP/1.1&quot; 201 Created</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place created.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image&quot;</span><span class="p">)</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;description&quot;</span><span class="p">)</span>
+        <span class="n">contact</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+        <span class="n">address</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">)</span>
+        <span class="n">gps</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gps&quot;</span><span class="p">)</span>
+        <span class="n">meals</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;meals&quot;</span><span class="p">)</span>
+        <span class="n">accomodation</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;accomodation&quot;</span><span class="p">)</span>
+        <span class="n">sport</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sport&quot;</span><span class="p">)</span>
+        <span class="n">hiking</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;hiking&quot;</span><span class="p">)</span>
+        <span class="n">fun</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fun&quot;</span><span class="p">)</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;events&quot;</span><span class="p">)</span>
+        <span class="c1">#image_data = input.get(&quot;image_data&quot;)</span>
+        <span class="n">gen_uuid</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO my_places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)</span>
+<span class="s2">                    VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,(</span><span class="nb">str</span><span class="p">(</span><span class="n">gen_uuid</span><span class="p">),</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span><span class="p">))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)</span>
+<span class="s2">                    VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">gen_uuid</span><span class="p">),</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span><span class="p">))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place created.&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/api/edit_my_place&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_place</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    User can edit his place in the system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">            INFO:     127.0.0.1:61505 - &quot;PUT /api/edit_my_place HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:61521 - &quot;PUT /api/edit_my_place HTTP/1.1&quot; 201 Created</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place edited.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the place is not found:</span>
+<span class="sd">            INFO:     127.0.0.1:61521 - &quot;PUT /api/edit_my_place HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place not found.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">place_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image&quot;</span><span class="p">)</span>
+        <span class="n">description</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;description&quot;</span><span class="p">)</span>
+        <span class="n">contact</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+        <span class="n">address</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;address&quot;</span><span class="p">)</span>
+        <span class="n">gps</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gps&quot;</span><span class="p">)</span>
+        <span class="n">meals</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;meals&quot;</span><span class="p">)</span>
+        <span class="n">accomodation</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;accomodation&quot;</span><span class="p">)</span>
+        <span class="n">sport</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sport&quot;</span><span class="p">)</span>
+        <span class="n">hiking</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;hiking&quot;</span><span class="p">)</span>
+        <span class="n">fun</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fun&quot;</span><span class="p">)</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;events&quot;</span><span class="p">)</span>
+        <span class="c1">#image_data = input.get(&quot;image_data&quot;)</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM my_places</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM my_places</span>
+<span class="s2">                        WHERE id=</span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM places</span>
+<span class="s2">                        WHERE id=</span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO my_places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)</span>
+<span class="s2">                        VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,(</span><span class="n">place_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span><span class="p">))</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)</span>
+<span class="s2">                        VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">place_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span><span class="n">events</span><span class="p">))</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place edited.&quot;</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place not found.&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="edit_place">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.edit_place">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/api/delete_my_place&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_place</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    User can delete his place from the system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">            INFO:     127.0.0.1:61661 - &quot;DELETE /api/delete_my_place HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:61689 - &quot;DELETE /api/delete_my_place HTTP/1.1&quot; 201 Created</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place deleted.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the place is not found:</span>
+<span class="sd">            INFO:     127.0.0.1:61689 - &quot;DELETE /api/delete_my_place HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Place not found.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">place_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM my_places</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM my_places</span>
+<span class="s2">                        WHERE id=</span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM places</span>
+<span class="s2">                        WHERE id=</span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place deleted.&quot;</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Place not found.&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/get_my_places&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_created_places</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets all user&#39;s places.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">            INFO:     127.0.0.1:62063 - &quot;GET /api/get_my_places HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:62091 - &quot;GET /api/get_my_places HTTP/1.1&quot; 201 Created</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;note&quot;: [</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: &quot;3a360180-7205-40f3-a600-6eb69520a06c&quot;,</span>
+<span class="sd">                        &quot;name&quot;: &quot;Testovacie miesto&quot;,</span>
+<span class="sd">                        &quot;image_name&quot;: &quot;t1&quot;,</span>
+<span class="sd">                        &quot;description&quot;: &quot;Miesto na testovanie&quot;,</span>
+<span class="sd">                        &quot;contact&quot;: &quot;421912345678&quot;,</span>
+<span class="sd">                        &quot;address&quot;: &quot;Testovacia adresa&quot;,</span>
+<span class="sd">                        &quot;gps&quot;: &quot;48.1405355220086, 17.115227264931488&quot;,</span>
+<span class="sd">                        &quot;meals&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;accomodation&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;sport&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;hiking&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;fun&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;events&quot;: &quot;TRUE&quot;</span>
+<span class="sd">                    }</span>
+<span class="sd">                ]</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the place is not found:</span>
+<span class="sd">            INFO:     127.0.0.1:62091 - &quot;GET /api/get_my_places HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Place not found&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM my_places&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Place not found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="get_created_places">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.get_created_places">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/get_my_place&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_created_places</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Gets chosen by user his place.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        request:</span>
+<span class="sd">            Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">             INFO:     127.0.0.1:62292 - &quot;GET /api/get_my_place HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:62314 - &quot;GET /api/get_my_place HTTP/1.1&quot; 201 Created</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;note&quot;: [</span>
+<span class="sd">                    {</span>
+<span class="sd">                        &quot;id&quot;: &quot;3a360180-7205-40f3-a600-6eb69520a06c&quot;,</span>
+<span class="sd">                        &quot;name&quot;: &quot;Testovacie miesto&quot;,</span>
+<span class="sd">                        &quot;image_name&quot;: &quot;t1&quot;,</span>
+<span class="sd">                        &quot;description&quot;: &quot;Miesto na testovanie&quot;,</span>
+<span class="sd">                        &quot;contact&quot;: &quot;421912345678&quot;,</span>
+<span class="sd">                        &quot;address&quot;: &quot;Testovacia adresa&quot;,</span>
+<span class="sd">                        &quot;gps&quot;: &quot;48.1405355220086, 17.115227264931488&quot;,</span>
+<span class="sd">                        &quot;meals&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;accomodation&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;sport&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;hiking&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;fun&quot;: &quot;TRUE&quot;,</span>
+<span class="sd">                        &quot;events&quot;: &quot;TRUE&quot;</span>
+<span class="sd">                    }</span>
+<span class="sd">                ]</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the place is not found:</span>
+<span class="sd">            INFO:     127.0.0.1:62314 - &quot;GET /api/get_my_place HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Place not found&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">place_id</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events</span>
+<span class="s2">                    FROM my_places</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">[</span><span class="n">place_id</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">records</span> <span class="o">=</span> <span class="n">zip_objects_from_db</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">cursor</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="n">records</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Place not found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="update_databse">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.update_databse">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/api/update_databse&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">update_databse</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Request to update database.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        credentials:</span>
+<span class="sd">            Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">            with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">     description content. For example:</span>
+
+<span class="sd">         If the user is not authorized:</span>
+<span class="sd">             INFO:     127.0.0.1:62687 - &quot;PUT /api/update_databse HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">             {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Not authenticated&quot;</span>
+<span class="sd">             }</span>
+
+<span class="sd">         If the request is successful:</span>
+<span class="sd">            INFO:     127.0.0.1:62724 - &quot;PUT /api/update_databse HTTP/1.1&quot; 201 Created</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;note&quot;: &quot;Records updated&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">         If the place is not found:</span>
+<span class="sd">            INFO:     127.0.0.1:62724 - &quot;PUT /api/update_databse HTTP/1.1&quot; 205 Reset Content</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Records not found&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">     Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">conn_server</span> <span class="o">=</span> <span class="n">pool_server</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor_server</span> <span class="o">=</span> <span class="n">conn_server</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM places&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT * FROM places&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor_server</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="n">pom</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cursor_server</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">row</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">place_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span><span class="p">,</span> <span class="n">image_data</span> <span class="o">=</span> <span class="n">row</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO places (id, name, image_name, description, contact, address, gps, meals, accomodation, sport, hiking, fun, events)</span>
+<span class="s2">                        VALUES (</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">,</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">place_id</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">description</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">address</span><span class="p">,</span> <span class="n">gps</span><span class="p">,</span> <span class="n">meals</span><span class="p">,</span> <span class="n">accomodation</span><span class="p">,</span> <span class="n">sport</span><span class="p">,</span> <span class="n">hiking</span><span class="p">,</span> <span class="n">fun</span><span class="p">,</span> <span class="n">events</span><span class="p">))</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">pom</span> <span class="o">=</span> <span class="mi">1</span>
+
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">cursor_server</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="n">pool_server</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn_server</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">pom</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Records updated&quot;</span><span class="p">})</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">205</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Records not found&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="upload_image">
+<a class="viewcode-back" href="../../../app.endpoints.html#app.endpoints.client.upload_image">[docs]</a>
+<span class="k">def</span> <span class="nf">upload_image</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Uploads image.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        file_path:</span>
+<span class="sd">            Path to source of image.</span>
+<span class="sd">        name:</span>
+<span class="sd">            Name of the image.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">drawing</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">pool_client</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+    <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;UPDATE places</span>
+<span class="s2">                SET image_data = </span><span class="si">%s</span>
+<span class="s2">                WHERE name = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">Binary</span><span class="p">(</span><span class="n">drawing</span><span class="p">),</span> <span class="n">name</span><span class="p">))</span>
+    <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">pool_client</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span></div>
+
+
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\escape_room.jpg&quot;,&quot;Escape room TRAPPED&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\koncert.jpg&quot;,&quot;Fajný koncert&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\dostihy.jpg&quot;,&quot;Závodisko - Dostihová dráha&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\kolkovna.jpg&quot;,&quot;Testovacie miesto&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\hradza.jpg&quot;,&quot;Petržalská hrádza&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\K2.jpg&quot;,&quot;Lezecká stena K2&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\sandberg.jpg&quot;,&quot;Sandberg&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\kacin.jpg&quot;,&quot;Kačín&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\kart_one_arena.jpg&quot;,&quot;Kart One Arena&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\sheraton.jpg&quot;,&quot;Sheraton&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\carlton.jpg&quot;,&quot;Radisson Blu Carlton Hotel Bratislava&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\be-about.jpg&quot;,&quot;BeAbout&quot;)</span>
+<span class="c1">#upload_image(&quot;C:\\Users\\petor\\Downloads\\kolkovna.jpg&quot;,&quot;Koľkovňa&quot;)</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">mtaa</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">app</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, xremenarp_xmatusiskova.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>app.auth.authentication &#8212; mtaa 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d1102ebc" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/alabaster.css?v=12dfc556" />
+    <script src="../../../_static/documentation_options.js?v=8d563738"></script>
+    <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+   
+  <link rel="stylesheet" href="../../../_static/custom.css" type="text/css" />
+  
+
+  
+  
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for app.auth.authentication</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Defines authentication functions and endpoints for API requests and related attributes.</span>
+
+<span class="sd">This is a part where user in BE needs to be authenticated in the beginning of the app.</span>
+<span class="sd">The user can sign up, login, delete account, reset his password if forgotten or edit his data.</span>
+<span class="sd">Except of that, this module also checks accessibility of user by his automatically</span>
+<span class="sd">generated token.</span>
+
+<span class="sd">A brief overview of exported classes and their usage:</span>
+<span class="sd">    router = APIRouter()</span>
+<span class="sd">        in any request, example:</span>
+<span class="sd">            @router.post(&quot;/api/signup/&quot;)</span>
+
+<span class="sd">    security = HTTPBearer()</span>
+<span class="sd">        in the authorization requests of user, example:</span>
+<span class="sd">            async def edit_profile(request: Request, credentials: HTTPAuthorizationCredentials</span>
+<span class="sd">                = Depends(security)):</span>
+
+<span class="sd">    new_user = CreateUser()</span>
+<span class="sd">        for the functions that validate inputs of user, example:</span>
+<span class="sd">             new_user.validate_input(username=username, email=email, password=password,</span>
+<span class="sd">                confirm_password=confirm_password) and new_user.validate_email(email=email)</span>
+
+<span class="sd">    secure_password = Tokenization()</span>
+<span class="sd">        for generating tokens and hashing user&#39;s password, example:</span>
+<span class="sd">            salty_password = secure_password.password_salting()</span>
+
+<span class="sd">    for handling database connection:</span>
+<span class="sd">        pool = psycopg2.pool.SimpleConnectionPool(</span>
+<span class="sd">                        minconn=1,</span>
+<span class="sd">                        maxconn=10,</span>
+<span class="sd">                        dbname=settings.DATABASE_NAME_SERVER,</span>
+<span class="sd">                        host=settings.DATABASE_HOST,</span>
+<span class="sd">                        port=settings.DATABASE_PORT,</span>
+<span class="sd">                        user=settings.DATABASE_USER,</span>
+<span class="sd">                        password=settings.DATABASE_PASSWORD</span>
+<span class="sd">                    )</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+
+<span class="kn">import</span> <span class="nn">jwt</span>
+<span class="kn">from</span> <span class="nn">fastapi</span> <span class="kn">import</span> <span class="n">APIRouter</span><span class="p">,</span> <span class="n">Request</span><span class="p">,</span> <span class="n">HTTPException</span><span class="p">,</span> <span class="n">Depends</span>
+<span class="kn">import</span> <span class="nn">psycopg2.pool</span>
+<span class="kn">from</span> <span class="nn">fastapi.security</span> <span class="kn">import</span> <span class="n">OAuth2PasswordBearer</span><span class="p">,</span> <span class="n">HTTPBearer</span><span class="p">,</span> <span class="n">HTTPAuthorizationCredentials</span>
+<span class="kn">from</span> <span class="nn">fastapi.responses</span> <span class="kn">import</span> <span class="n">JSONResponse</span>
+<span class="kn">from</span> <span class="nn">app.auth.CreateUser</span> <span class="kn">import</span> <span class="n">CreateUser</span>
+<span class="kn">from</span> <span class="nn">app.auth.Tokenization</span> <span class="kn">import</span> <span class="n">Tokenization</span>
+<span class="kn">from</span> <span class="nn">app.config.config</span> <span class="kn">import</span> <span class="n">settings</span>
+
+<span class="n">router</span> <span class="o">=</span> <span class="n">APIRouter</span><span class="p">()</span>
+<span class="n">security</span> <span class="o">=</span> <span class="n">HTTPBearer</span><span class="p">()</span>
+<span class="n">oauth2_scheme</span> <span class="o">=</span> <span class="n">OAuth2PasswordBearer</span><span class="p">(</span><span class="n">tokenUrl</span><span class="o">=</span><span class="s2">&quot;/api/auth&quot;</span><span class="p">)</span>
+
+<span class="n">pool</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">pool</span><span class="o">.</span><span class="n">SimpleConnectionPool</span><span class="p">(</span>
+    <span class="n">minconn</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">maxconn</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">dbname</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_NAME_SERVER</span><span class="p">,</span>
+    <span class="n">host</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_HOST</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_PORT</span><span class="p">,</span>
+    <span class="n">user</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_USER</span><span class="p">,</span>
+    <span class="n">password</span><span class="o">=</span><span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_PASSWORD</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="signup">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.signup">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/signup/&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">signup</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Registers user and handles his data.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as username, email, password and confirmation password,</span>
+<span class="sd">    then validate them and put into database.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       request:</span>
+<span class="sd">        Body of the post request. Request instance of the FastAPI.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">       description content. For example:</span>
+
+<span class="sd">           If the user is created successfully:</span>
+<span class="sd">               INFO:     127.0.0.1:61359 - &quot;POST /api/signup/ HTTP/1.1&quot; 201 Created</span>
+<span class="sd">               {</span>
+<span class="sd">                   &quot;detail&quot;: &quot;Created: User created successfully&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">           If the user is trying to register with the already existing email in the database:</span>
+<span class="sd">               INFO:     127.0.0.1:61957 - &quot;POST /api/signup/ HTTP/1.1&quot; 400 Bad Request</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;Bad request: Email already exists.&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">           If the user wrote invalid input:</span>
+<span class="sd">               INFO:     127.0.0.1:62019 - &quot;POST /api/signup/ HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;Forbidden: Access forbidden.&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">           If the user wrote invalid input, the field is missing:</span>
+<span class="sd">               INFO:     127.0.0.1:62059 - &quot;POST /api/signup/ HTTP/1.1&quot; 400 Bad Request</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;Bad request: All fields are required.&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">       Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred in the SQL query or database connection.</span>
+<span class="sd">        psycopg2.Error instance with status code 500.</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;username&quot;</span><span class="p">)</span>
+        <span class="n">email</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
+        <span class="n">confirm_password</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;confirm_password&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">username</span> <span class="ow">and</span> <span class="n">email</span> <span class="ow">and</span> <span class="n">password</span> <span class="ow">and</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Bad request: All fields are required.&quot;</span><span class="p">})</span>
+
+        <span class="n">is_email</span> <span class="o">=</span> <span class="k">await</span> <span class="n">email_exists</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_email</span><span class="p">:</span>
+            <span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span> <span class="o">=</span> <span class="k">await</span> <span class="n">generate_hashed_password</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">salty_password</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">hashed_password</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">403</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Forbidden: Access forbidden.&quot;</span><span class="p">})</span>
+
+            <span class="n">generated_uuid</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span>
+            <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;INSERT INTO users_auth</span>
+<span class="s2">                        VALUES (</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">generated_uuid</span><span class="p">),</span> <span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span><span class="p">))</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">201</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Created: User created successfully&quot;</span><span class="p">})</span>
+        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Bad request: Email already exists.&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error executing SQL query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Database error&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_hashed_password">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.generate_hashed_password">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">generate_hashed_password</span><span class="p">(</span><span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generating a hash password according to input user&#39;s password.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as username, email, password and confirmation password,</span>
+<span class="sd">    and validate this data. Then generate password by Tokenization class functions.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       username:</span>
+<span class="sd">        User&#39;s input of username.</span>
+<span class="sd">       email:</span>
+<span class="sd">        User&#39;s input of email.</span>
+<span class="sd">       password:</span>
+<span class="sd">        User&#39;s input of password.</span>
+<span class="sd">       confirm_password:</span>
+<span class="sd">        User&#39;s input of confirm_password.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A tuple of salty_password and hashed_password or if not successful then None and None.</span>
+<span class="sd">       For example:</span>
+<span class="sd">            user password is: &quot;125&quot;</span>
+
+<span class="sd">            the salty_password is: &quot;c188d9111ecd9c8310c4775afdb2f166&quot;</span>
+<span class="sd">            the hashed_password is: &quot;bb1ca6e6c5ce37d2020c62097d43734baa6ea3f0d99b978b624b9c98fea23d25&quot;</span>
+
+
+<span class="sd">       Returned response is always tuple. The salty password is important due to security of</span>
+<span class="sd">       the user&#39;s data.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">check_signup_input</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="n">secure_password</span> <span class="o">=</span> <span class="n">Tokenization</span><span class="p">()</span>
+            <span class="n">salty_password</span> <span class="o">=</span> <span class="n">secure_password</span><span class="o">.</span><span class="n">password_salting</span><span class="p">()</span>
+            <span class="n">hashed_password</span> <span class="o">=</span> <span class="n">secure_password</span><span class="o">.</span><span class="n">password_hashing</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salty_password</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span>
+        <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="check_signup_input">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.check_signup_input">[docs]</a>
+<span class="k">def</span> <span class="nf">check_signup_input</span><span class="p">(</span><span class="n">username</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">email</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Validates user input and checks equality of passwords.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as username, email, password and confirmation password,</span>
+<span class="sd">    and validate this data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      username:</span>
+<span class="sd">       User&#39;s input of username.</span>
+<span class="sd">      email:</span>
+<span class="sd">       User&#39;s input of email.</span>
+<span class="sd">      password:</span>
+<span class="sd">       User&#39;s input of password.</span>
+<span class="sd">      confirm_password:</span>
+<span class="sd">       User&#39;s input of confirm_password.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A boolean value (True or False).</span>
+
+<span class="sd">      If is everything correct then True. If not then False.</span>
+
+<span class="sd">      Returned response is always boolean.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_user</span> <span class="o">=</span> <span class="n">CreateUser</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">check_passwords_equality</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">)</span> <span class="ow">and</span> <span class="n">new_user</span><span class="o">.</span><span class="n">validate_input</span><span class="p">(</span><span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="n">password</span><span class="p">,</span>
+                                                                <span class="n">confirm_password</span><span class="o">=</span><span class="n">confirm_password</span><span class="p">)</span> <span class="ow">and</span> <span class="n">new_user</span><span class="o">.</span><span class="n">validate_email</span><span class="p">(</span><span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="check_passwords_equality">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.check_passwords_equality">[docs]</a>
+<span class="k">def</span> <span class="nf">check_passwords_equality</span><span class="p">(</span><span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks passwords equality between argument password and confirm_password.</span>
+<span class="sd">    They should be the same.</span>
+
+<span class="sd">    Retrieves user&#39;s input data of password and confirmation password.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      password:</span>
+<span class="sd">       User&#39;s input of password.</span>
+<span class="sd">      confirm_password:</span>
+<span class="sd">       User&#39;s input of confirm_password.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A boolean value (True or False).</span>
+
+<span class="sd">      If the passwords are equal then True. If not then False.</span>
+
+<span class="sd">      Returned response is always boolean.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">password</span> <span class="o">==</span> <span class="n">confirm_password</span></div>
+
+
+
+<div class="viewcode-block" id="email_exists">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.email_exists">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">email_exists</span><span class="p">(</span><span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checking if the email is already in the database.</span>
+
+<span class="sd">    Retrieves user&#39;s input data of an email and searching</span>
+<span class="sd">    email in the database by SQL query.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       email:</span>
+<span class="sd">        User&#39;s input of email.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A boolean value (True or False).</span>
+
+<span class="sd">       If the email is not in the database then False. If does exist then True.</span>
+
+<span class="sd">       Returned response is always boolean.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT EXISTS(SELECT 1 FROM users_auth WHERE email=</span><span class="si">%s</span><span class="s2">)&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="p">))</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="p">{</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="login">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.login">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/login/&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Logins user into the system and generates jwt bearer token for authorization.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as username and password to login into system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       request:</span>
+<span class="sd">        Body of the post request. Request instance of the FastAPI.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">       description content or jwt token with status code 200 OK. For example:</span>
+
+<span class="sd">           If the user is login successfully:</span>
+<span class="sd">               INFO:     127.0.0.1:56045 - &quot;POST /api/login/ HTTP/1.1&quot; 200 OK</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;jwt_token&quot;: &quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjBmYmIwNmQzLThlMjEtNDdmOC1hYjhiLWZiYjFkZWMxOGI0NCJ9.56AYBki0mTphIyHpYnQqh1Agc-070KynBIl9Zlsiy5M&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">          If the user is not login successfully:</span>
+<span class="sd">            INFO:     127.0.0.1:56097 - &quot;POST /api/login/ HTTP/1.1&quot; 401 Unauthorized</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Unauthorized&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">          If the one of the inputs (username, password) is misssing:</span>
+<span class="sd">            INFO:     127.0.0.1:57299 - &quot;POST /api/login/ HTTP/1.1&quot; 400 Bad Request</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Bad request&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">        Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">        a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">user_input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="n">user_input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;username&quot;</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">user_input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">username</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">password</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Bad request&quot;</span><span class="p">})</span>
+
+        <span class="n">user_token</span> <span class="o">=</span> <span class="k">await</span> <span class="n">get_user</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">user_token</span> <span class="ow">and</span> <span class="n">user_token</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;jwt_token&quot;</span><span class="p">:</span> <span class="n">user_token</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">401</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Unauthorized&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="p">{</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">})</span></div>
+
+
+
+<div class="viewcode-block" id="get_user">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.get_user">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_user</span><span class="p">(</span><span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function from the login process to find user in the system</span>
+<span class="sd">    according to his name and password by SQL query.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as username and password to login into system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      username:</span>
+<span class="sd">        User&#39;s input of username.</span>
+<span class="sd">      password:</span>
+<span class="sd">        User&#39;s input of password.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A generated jwt token or boolean. For example:</span>
+
+<span class="sd">        If the user is found in the database:</span>
+<span class="sd">          jwt token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjBmYmIwNmQzLThlMjEtNDdmOC1hYjhiLWZiYjFkZWMxOGI0NCJ9.56AYBki0mTphIyHpYnQqh1Agc-070KynBIl9Zlsiy5M</span>
+<span class="sd">        else:</span>
+<span class="sd">            False</span>
+
+<span class="sd">    Returned response is a boolean value or generate jwt token</span>
+<span class="sd">    as a response to the login function.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+    <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT *</span>
+<span class="s2">                   FROM users_auth</span>
+<span class="s2">                   WHERE username= </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,))</span>
+    <span class="n">record</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">record</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+        <span class="n">hashed_password</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+        <span class="n">salty_password</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">get_password</span> <span class="o">=</span> <span class="n">Tokenization</span><span class="p">()</span>
+        <span class="n">new_hashed_password</span> <span class="o">=</span> <span class="n">get_password</span><span class="o">.</span><span class="n">password_hashing</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salty_password</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">check_passwords_equality</span><span class="p">(</span><span class="n">hashed_password</span><span class="p">,</span> <span class="n">new_hashed_password</span><span class="p">):</span>
+            <span class="n">user_id</span> <span class="o">=</span> <span class="n">record</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">jwt_token</span> <span class="o">=</span> <span class="n">get_password</span><span class="o">.</span><span class="n">jwt_token_generalization</span><span class="p">({</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">user_id</span><span class="p">})</span>
+            <span class="k">return</span> <span class="n">jwt_token</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="forgotten_password">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.forgotten_password">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="s2">&quot;/api/forgotten-password/&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">forgotten_password</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">JSONResponse</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If the user forgotten password, this function can change/update his password</span>
+<span class="sd">    and generate new hashed password.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as email, password, confirm_password into system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       request:</span>
+<span class="sd">        Body of the post request. Request instance of the FastAPI.</span>
+
+<span class="sd">   Returns:</span>
+<span class="sd">       A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">       description content. For example:</span>
+
+<span class="sd">       If the password is changed successfully:</span>
+<span class="sd">           INFO:     127.0.0.1:58563 - &quot;PUT /api/forgotten-password/ HTTP/1.1&quot; 200 OK</span>
+<span class="sd">           {</span>
+<span class="sd">                &quot;detail&quot;: &quot;OK: Password updated successfully&quot;</span>
+<span class="sd">           }</span>
+
+<span class="sd">       If one of the input values are missing:</span>
+<span class="sd">            INFO:     127.0.0.1:58751 - &quot;PUT /api/forgotten-password/ HTTP/1.1&quot; 400 Bad Request</span>
+<span class="sd">            {</span>
+<span class="sd">               &quot;detail&quot;: &quot;Bad request: All fields are required.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">       If the email is invalid:</span>
+<span class="sd">            INFO:     127.0.0.1:58876 - &quot;PUT /api/forgotten-password/ HTTP/1.1&quot; 403 Forbidden</span>
+<span class="sd">            {</span>
+<span class="sd">                &quot;detail&quot;: &quot;Forbidden: Access forbidden.&quot;</span>
+<span class="sd">            }</span>
+
+<span class="sd">    Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">   Raises:</span>
+<span class="sd">       HTTPException: An error occurred in the SQL query or database connection.</span>
+<span class="sd">        psycopg2.Error instance with status code 500.</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">email</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
+        <span class="n">confirm_password</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;confirm_password&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">email</span> <span class="ow">and</span> <span class="n">password</span> <span class="ow">and</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Bad request: All fields are required.&quot;</span><span class="p">})</span>
+
+        <span class="n">is_email</span> <span class="o">=</span> <span class="k">await</span> <span class="n">email_exists</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_email</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">403</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Forbidden: Access forbidden.&quot;</span><span class="p">})</span>
+
+        <span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span> <span class="o">=</span> <span class="k">await</span> <span class="n">generate_new_hashed_password</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">)</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;UPDATE users_auth</span>
+<span class="s2">                      SET password_salt = </span><span class="si">%s</span><span class="s2">, password_hash = </span><span class="si">%s</span>
+<span class="s2">                      WHERE email = </span><span class="si">%s</span><span class="s2"> &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span><span class="p">,</span> <span class="n">email</span><span class="p">))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Password updated successfully&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error executing SQL query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Database error&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_new_hashed_password">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.generate_new_hashed_password">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">generate_new_hashed_password</span><span class="p">(</span><span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates new hashed password after signup or forgotten password.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as password and confirm_password into system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      password:</span>
+<span class="sd">        User&#39;s input of password.</span>
+<span class="sd">      confirm_password:</span>
+<span class="sd">        User&#39;s input of confirm_password.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Tuple of salty_password and hashed_password or unsuccessful status.</span>
+<span class="sd">      For example:</span>
+
+<span class="sd">      If successful:</span>
+<span class="sd">        (4ab5a6eeb8c11c58158b5b91880f6bd3, ff17345a32fe7cdfe1b47b8ac37c4979cc5f6e9a0487448c082b5a83d4164fa0)</span>
+<span class="sd">      else:</span>
+<span class="sd">        &quot;status&quot;: &quot;Passwords are not equal.&quot; error 500</span>
+
+
+<span class="sd">    Returned response is tuple or JSON object</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">           a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">check_passwords_equality</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="n">secure_password</span> <span class="o">=</span> <span class="n">Tokenization</span><span class="p">()</span>
+            <span class="n">salty_password</span> <span class="o">=</span> <span class="n">secure_password</span><span class="o">.</span><span class="n">password_salting</span><span class="p">()</span>
+            <span class="n">hashed_password</span> <span class="o">=</span> <span class="n">secure_password</span><span class="o">.</span><span class="n">password_hashing</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salty_password</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;Passwords are not equal.&quot;</span><span class="p">}</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="edit_profile">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.edit_profile">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">patch</span><span class="p">(</span><span class="s2">&quot;/api/edit_profile/&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_profile</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span> <span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Edits profile of user, by updating his data from the user input.</span>
+<span class="sd">    Always can be change only one data at once of user.</span>
+
+<span class="sd">    Retrieves user&#39;s input data as username, email, password and confirmation password,</span>
+<span class="sd">    then validate them and update in database.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       request:</span>
+<span class="sd">        Body of the post request. Request instance of the FastAPI.</span>
+<span class="sd">       credentials:</span>
+<span class="sd">        Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">        with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">       description content. For example:</span>
+
+<span class="sd">           If the token is wrong:</span>
+<span class="sd">               INFO:     127.0.0.1:60478 - &quot;PATCH /api/edit_profile/ HTTP/1.1&quot;&quot; 403 Forbidden</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;Forbidden: Invalid token&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">           if the input is missing, nothing is updated:</span>
+<span class="sd">                INFO:     127.0.0.1:60478 - &quot;PATCH /api/edit_profile/ HTTP/1.1&quot; 200 OK</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;status&quot;: &quot;No changes were made.&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">           If the input is correct and user is authorized, as example email:</span>
+<span class="sd">                INFO:     127.0.0.1:60599 - &quot;PATCH /api/edit_profile/ HTTP/1.1&quot; 200 OK</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;OK: Email updated successfully.&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">           If the input is correct and user is authorized, but email already exists,</span>
+<span class="sd">            as example email:</span>
+<span class="sd">                INFO:     127.0.0.1:60652 - &quot;PATCH /api/edit_profile/ HTTP/1.1&quot; 500 Internal Server Error</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;Email is not updated, check id or email.&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">       Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+        <span class="nb">input</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="n">token_access_value</span>
+        <span class="n">username</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;username&quot;</span><span class="p">)</span>
+        <span class="n">email</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;password&quot;</span><span class="p">)</span>
+        <span class="n">confirm_password</span> <span class="o">=</span> <span class="nb">input</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;confirm_password&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">username</span> <span class="ow">or</span> <span class="n">email</span> <span class="ow">or</span> <span class="n">password</span> <span class="ow">or</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;No changes were made.&quot;</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">edit_only_username_or_email</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="n">is_changed</span> <span class="o">=</span> <span class="k">await</span> <span class="n">edit_username</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_changed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Username updated successfully.&quot;</span><span class="p">})</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Username is not updated, check id.&quot;</span><span class="p">})</span>
+        <span class="k">elif</span> <span class="n">edit_only_username_or_email</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">):</span>
+            <span class="n">is_changed</span> <span class="o">=</span> <span class="k">await</span> <span class="n">edit_email</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_changed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Email updated successfully.&quot;</span><span class="p">})</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Email is not updated, check id or email.&quot;</span><span class="p">})</span>
+        <span class="k">elif</span> <span class="n">edit_only_password</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">email</span><span class="p">):</span>
+            <span class="n">is_changed</span> <span class="o">=</span> <span class="k">await</span> <span class="n">edit_password</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">,</span> <span class="nb">id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_changed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Password updated successfully.&quot;</span><span class="p">})</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;Password is not updated, check id.&quot;</span><span class="p">})</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="edit_only_username_or_email">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.edit_only_username_or_email">[docs]</a>
+<span class="k">def</span> <span class="nf">edit_only_username_or_email</span><span class="p">(</span><span class="n">attribute_to_change</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">stay_attribute</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if the user wants to change username or email.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      attribute_to_change:</span>
+<span class="sd">        User&#39;s input of username or email.</span>
+<span class="sd">      stay_attribute:</span>
+<span class="sd">        User&#39;s input of username or email.</span>
+<span class="sd">        If is in the attribute_to_change username then in this will be email and vice versa.</span>
+<span class="sd">        The wanted value is None.</span>
+<span class="sd">      password:</span>
+<span class="sd">        User&#39;s input of password, the wanted value is None.</span>
+<span class="sd">      confirm_password:</span>
+<span class="sd">        User&#39;s input of confirm_password, the wanted value is None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      A boolean value (True or False).</span>
+
+<span class="sd">      If the attribute_to_change is True an others are False, then return True.</span>
+<span class="sd">      Else return False.</span>
+
+<span class="sd">      Returned response is always boolean.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">attribute_to_change</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">stay_attribute</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">password</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">confirm_password</span></div>
+
+
+
+<div class="viewcode-block" id="edit_username">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.edit_username">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_username</span><span class="p">(</span><span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If the user choose to edit username, then this function handles it</span>
+<span class="sd">    by SQL query updating database data of user.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">     username:</span>
+<span class="sd">        User&#39;s input of username  to change/update.</span>
+<span class="sd">     id:</span>
+<span class="sd">        Id of user from the token.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A boolean value. For example:</span>
+
+<span class="sd">     If the username is changed successfully:</span>
+<span class="sd">        Then returns True.</span>
+<span class="sd">     Else:</span>
+<span class="sd">        Returns False.</span>
+
+<span class="sd">    Returned response is always boolean.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred in the SQL query or database connection.</span>
+<span class="sd">      psycopg2.Error instance with status code 500.</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;UPDATE users_auth</span>
+<span class="s2">                    SET username = </span><span class="si">%s</span>
+<span class="s2">                    WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="nb">id</span><span class="p">))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error executing SQL query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Database error&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="edit_email">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.edit_email">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_email</span><span class="p">(</span><span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If the user choose to edit email, then this function handles it</span>
+<span class="sd">    by SQL query updating database data of user.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">     email:</span>
+<span class="sd">        User&#39;s input of email  to change/update.</span>
+<span class="sd">     id:</span>
+<span class="sd">        Id of user from the token.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A boolean value. For example:</span>
+
+<span class="sd">     If the email is changed successfully:</span>
+<span class="sd">        Then returns True.</span>
+<span class="sd">     Else:</span>
+<span class="sd">        Returns False.</span>
+
+<span class="sd">    Returned response is always boolean.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred in the SQL query or database connection.</span>
+<span class="sd">      psycopg2.Error instance with status code 500.</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">new_user</span> <span class="o">=</span> <span class="n">CreateUser</span><span class="p">()</span>
+        <span class="n">is_email</span> <span class="o">=</span> <span class="k">await</span> <span class="n">email_exists</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">is_email</span> <span class="ow">and</span> <span class="n">new_user</span><span class="o">.</span><span class="n">validate_email</span><span class="p">(</span><span class="n">email</span><span class="o">=</span><span class="n">email</span><span class="p">):</span>
+            <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+            <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;UPDATE users_auth</span>
+<span class="s2">                        SET email = </span><span class="si">%s</span>
+<span class="s2">                        WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="nb">id</span><span class="p">))</span>
+            <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error executing SQL query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Database error&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="edit_only_password">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.edit_only_password">[docs]</a>
+<span class="k">def</span> <span class="nf">edit_only_password</span><span class="p">(</span><span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks if the user wants to change password.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">     password:</span>
+<span class="sd">       User&#39;s input of password.</span>
+<span class="sd">     confirm_password:</span>
+<span class="sd">       User&#39;s input of confirm_password.</span>
+<span class="sd">     username:</span>
+<span class="sd">       User&#39;s input of username, the wanted value is None.</span>
+<span class="sd">     email:</span>
+<span class="sd">       User&#39;s input of email, the wanted value is None.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A boolean value (True or False).</span>
+
+<span class="sd">     If the password and confirm_password is True an others are False, then return True.</span>
+<span class="sd">     Else return False.</span>
+
+<span class="sd">     Returned response is always boolean.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">password</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">confirm_password</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">username</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">email</span></div>
+
+
+
+<div class="viewcode-block" id="edit_password">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.edit_password">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">edit_password</span><span class="p">(</span><span class="n">password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    If the user choose to edit password, then this function handles it</span>
+<span class="sd">    by SQL query updating database data of user.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">     password:</span>
+<span class="sd">        User&#39;s input of password to change/update.</span>
+<span class="sd">     confirm_password:</span>
+<span class="sd">        User&#39;s input of confirm_password to check equality with password.</span>
+<span class="sd">     id:</span>
+<span class="sd">        Id of user from the token.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">     A boolean value. For example:</span>
+
+<span class="sd">     If the password is changed successfully:</span>
+<span class="sd">        Then returns True.</span>
+<span class="sd">     Else:</span>
+<span class="sd">        Returns False.</span>
+
+<span class="sd">    Returned response is always boolean.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">     HTTPException: An error occurred in the SQL query or database connection.</span>
+<span class="sd">      psycopg2.Error instance with status code 500.</span>
+<span class="sd">     HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">          a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span> <span class="o">=</span> <span class="k">await</span> <span class="n">generate_new_hashed_password</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">confirm_password</span><span class="p">)</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;UPDATE users_auth</span>
+<span class="s2">                              SET password_salt = </span><span class="si">%s</span><span class="s2">, password_hash = </span><span class="si">%s</span>
+<span class="s2">                              WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">salty_password</span><span class="p">,</span> <span class="n">hashed_password</span><span class="p">,</span> <span class="nb">id</span><span class="p">))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error executing SQL query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Database error&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="delete_account">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.delete_account">[docs]</a>
+<span class="nd">@router</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/api/delete_account/&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">delete_account</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Deletes whole user&#39;s data from the system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       credentials:</span>
+<span class="sd">        Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">        with security instance of HTTPBearer.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">       A JSONResponse of the HTTP/HTTPS status code of the request with</span>
+<span class="sd">       description content. For example:</span>
+
+<span class="sd">           If the token is wrong:</span>
+<span class="sd">               INFO:     127.0.0.1:62356 - &quot;DELETE /api/delete_note HTTP/1.1&quot; 500 Internal Server Error</span>
+<span class="sd">               {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;Internal server error: cannot access local variable &#39;token_access&#39;</span>
+<span class="sd">                    where it is not associated with a value&quot;</span>
+<span class="sd">               }</span>
+
+<span class="sd">           If the user is deleted successfully:</span>
+<span class="sd">                INFO:     127.0.0.1:62476 - &quot;DELETE /api/delete_account/ HTTP/1.1&quot; 200 OK</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;detail&quot;: &quot;OK: Account deleted successfully.&quot;</span>
+<span class="sd">                }</span>
+
+<span class="sd">       Returned response is always JSON object with HTTP/HTTPS status code.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred in the SQL query or database connection.</span>
+<span class="sd">            psycopg2.Error instance with status code 500.</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token_access_value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">token_access_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Not Found&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found.&quot;</span><span class="p">})</span>
+
+
+        <span class="n">user_id</span> <span class="o">=</span> <span class="n">token_access_value</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">user_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Bad Request: User ID is required.&quot;</span><span class="p">)</span>
+
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;DELETE FROM users_auth</span>
+<span class="s2">                        WHERE id = </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">404</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Not Found: User not found.&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">JSONResponse</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;detail&quot;</span><span class="p">:</span> <span class="s2">&quot;OK: Account deleted successfully.&quot;</span><span class="p">})</span>
+
+    <span class="k">except</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">Error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error executing SQL query: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Database error&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="token_access">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.token_access">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">token_access</span><span class="p">(</span><span class="n">credentials</span><span class="p">:</span> <span class="n">HTTPAuthorizationCredentials</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">security</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">   Check if the user is authorized.</span>
+
+<span class="sd">   Args:</span>
+<span class="sd">      credentials:</span>
+<span class="sd">       Bearer token to authorize. HTTPAuthorizationCredentials instance</span>
+<span class="sd">       with security instance of HTTPBearer.</span>
+
+<span class="sd">   Returns:</span>
+<span class="sd">      Value of the user_id or value None. For example:</span>
+
+<span class="sd">          If the user_id is not found in the token, then return None.</span>
+
+<span class="sd">          If the user_id is found in the token, then return its value.</span>
+
+<span class="sd">   Raises:</span>
+<span class="sd">      HTTPException: Token expired or is no longer available.</span>
+<span class="sd">           jwt.ExpiredSignatureError instance with status code 401.</span>
+<span class="sd">      HTTPException: Forbidden: Invalid token.</span>
+<span class="sd">           jwt.InvalidTokenError instance with status code 403.</span>
+<span class="sd">   &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">credentials</span><span class="o">.</span><span class="n">credentials</span>
+        <span class="n">decoded_token</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">token</span><span class="p">,</span> <span class="n">settings</span><span class="o">.</span><span class="n">JWT_SECRET_KEY</span><span class="p">,</span> <span class="n">algorithms</span><span class="o">=</span><span class="p">[</span><span class="n">settings</span><span class="o">.</span><span class="n">ALGORITHM</span><span class="p">])</span>
+
+        <span class="n">user_id</span> <span class="o">=</span> <span class="n">decoded_token</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">user_id</span><span class="p">:</span>
+            <span class="n">db_user_id</span> <span class="o">=</span> <span class="k">await</span> <span class="n">get_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">db_user_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">user_id</span> <span class="o">==</span> <span class="n">db_user_id</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="n">user_id</span>
+
+    <span class="k">except</span> <span class="n">jwt</span><span class="o">.</span><span class="n">ExpiredSignatureError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">401</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Token expired&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">jwt</span><span class="o">.</span><span class="n">InvalidTokenError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">403</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="s2">&quot;Forbidden: Invalid token&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="get_user_id">
+<a class="viewcode-back" href="../../../app.auth.html#app.auth.authentication.get_user_id">[docs]</a>
+<span class="k">async</span> <span class="k">def</span> <span class="nf">get_user_id</span><span class="p">(</span><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Finds user_id in the database according to user id from the token in the sent parameter.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       id:</span>
+<span class="sd">        User id from the bearer token.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Value of the user_id as a result variable or value None. For example:</span>
+
+<span class="sd">          If the user_id is not found in the database, then return None.</span>
+
+<span class="sd">          If the user_id is found in the database, then return its value.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">       HTTPException: An error occurred, Internal server error. Its is</span>
+<span class="sd">            a general exception. Exception instance with status code 500.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">conn</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">getconn</span><span class="p">()</span>
+        <span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+        <span class="n">query</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;&quot;&quot;SELECT *</span>
+<span class="s2">                       FROM users_auth</span>
+<span class="s2">                       WHERE id= </span><span class="si">%s</span><span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="nb">id</span><span class="p">,))</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">putconn</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cursor</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">result</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">HTTPException</span><span class="p">(</span><span class="n">status_code</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="p">{</span><span class="sa">f</span><span class="s2">&quot;Internal server error: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">})</span></div>
+
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../../index.html">mtaa</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">app</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../../index.html">Documentation overview</a><ul>
+  <li><a href="../../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &#169;2024, xremenarp_xmatusiskova.
+      
+      |
+      Powered by <a href="https://www.sphinx-doc.org/">Sphinx 7.3.7</a>
+      &amp; <a href="https://alabaster.readthedocs.io">Alabaster 0.7.16</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
